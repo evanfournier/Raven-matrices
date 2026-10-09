@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Raven Matrix Trainer — test harness</title>
+<style>
+  body { font: 12px sans-serif; margin: 8px; background: #fff; }
+  .sheet { display: grid; grid-template-columns: repeat(2, 640px); gap: 18px; }
+  .pz { border: 1px solid #ccc; padding: 6px; }
+  .pz h4 { margin: 0 0 4px; font-size: 12px; }
+  .row { display: flex; gap: 4px; }
+  .m { display: grid; grid-template-columns: repeat(3, 84px); gap: 3px; }
+  .o { display: grid; grid-template-columns: repeat(4, 76px); gap: 3px; align-content: start; margin-left: 10px; }
+  .m > div, .o > div { border: 1px solid #ddd; position: relative; }
+  .m svg, .o svg { width: 100%; display: block; }
+  .o > div.ok { outline: 3px solid #16a34a; }
+  .o span { position: absolute; left: 2px; top: 0; font-size: 9px; color: #888; }
+  .q { display: flex; align-items: center; justify-content: center; font-size: 30px; color: #93c5fd; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script src="../js/core.js"></script>
+<script src="../js/families-attributes.js"></script>
+<script src="../js/families-logic.js"></script>
+<script src="../js/families-motion.js"></script>
+<script src="../js/catalog.js"></script>
+<script>
+  window.showSheet = function (list) {
+    const out = document.getElementById('out');
+    out.innerHTML = '<div class="sheet">' + list.map(function (P) {
+      return '<div class="pz"><h4>#' + (P.num || '-') + ' ' + P.famId + ' v' + P.variant + ' ★' + P.difficulty + ' (ans ' + (P.answerIndex + 1) + ')</h4><div class="row"><div class="m">' +
+        P.panels.map(function (s) { return '<div>' + s + '</div>'; }).join('') + '<div class="q">?</div></div><div class="o">' +
+        P.options.map(function (s, i) { return '<div class="' + (i === P.answerIndex ? 'ok' : '') + '"><span>' + (i + 1) + '</span>' + s + '</div>'; }).join('') +
+        '</div></div></div>';
+    }).join('') + '</div>';
+  };
+</script>
+</body>
+</html>
