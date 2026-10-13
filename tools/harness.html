@@ -24,14 +24,24 @@
 <script src="../js/families-attributes.js"></script>
 <script src="../js/families-logic.js"></script>
 <script src="../js/families-motion.js"></script>
+<script src="../js/families-e1.js"></script>
+<script src="../js/families-e2.js"></script>
+<script src="../js/families-f1.js"></script>
+<script src="../js/families-f2.js"></script>
+<script src="../js/families-g1.js"></script>
+<script src="../js/families-g2.js"></script>
+<script src="../js/families-h1.js"></script>
+<script src="../js/families-h2.js"></script>
 <script src="../js/catalog.js"></script>
 <script>
-  window.showSheet = function (list) {
+  window.showSheet = function (list, blind) {
     const out = document.getElementById('out');
     out.innerHTML = '<div class="sheet">' + list.map(function (P) {
-      return '<div class="pz"><h4>#' + (P.num || '-') + ' ' + P.famId + ' v' + P.variant + ' ★' + P.difficulty + ' (ans ' + (P.answerIndex + 1) + ')</h4><div class="row"><div class="m">' +
+      const head = blind ? 'Puzzle #' + P.num + (P.reading === 'sequence' ? ' (SEQUENCE: read panels left→right, top→bottom)' : '')
+        : '#' + (P.num || '-') + ' ' + P.famId + ' v' + P.variant + ' ★' + P.difficulty + ' (ans ' + (P.answerIndex + 1) + ')';
+      return '<div class="pz"><h4>' + head + '</h4><div class="row"><div class="m">' +
         P.panels.map(function (s) { return '<div>' + s + '</div>'; }).join('') + '<div class="q">?</div></div><div class="o">' +
-        P.options.map(function (s, i) { return '<div class="' + (i === P.answerIndex ? 'ok' : '') + '"><span>' + (i + 1) + '</span>' + s + '</div>'; }).join('') +
+        P.options.map(function (s, i) { return '<div class="' + (!blind && i === P.answerIndex ? 'ok' : '') + '"><span>' + (i + 1) + '</span>' + s + '</div>'; }).join('') +
         '</div></div></div>';
     }).join('') + '</div>';
   };
