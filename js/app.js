@@ -5,7 +5,8 @@
   const app = document.getElementById('app');
   const $ = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
-  const stars = (d) => '★'.repeat(d) + '☆'.repeat(5 - d);
+  const TIER = { 3: 'Hard', 4: 'Very hard', 5: 'Extreme', 6: 'Elite', 7: 'Nightmare' };
+  const stars = (d) => (d > 5 ? `<span class="elite-st">${'★'.repeat(d)}</span>` : '★'.repeat(d) + '☆'.repeat(5 - d));
   const mmss = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -40,10 +41,34 @@
     'vector-sum': 'Arrows are moves on a grid: add them like vectors.',
     'z-order': 'Track the stacking order of overlapping figures.',
     billiards: 'A sequence: balls move with constant velocity and bounce off the walls.',
+    'secret-values': 'Every kind of token is worth a hidden amount; panel totals obey a row rule.',
+    abacus: 'Each abacus is a number in an unknown base — with carries.',
+    crossings: 'Count the crossing points, not the lines.',
+    translations: 'The same numbers written in different "languages" (dots, polygons, bars, stars).',
+    seesaw: 'Crossed arithmetic on the two pans; the beam always tips toward the heavier side.',
+    containers: 'A big polygon has as many sides as the small ones inside it — and changes along the row.',
+    tumble: 'Turn the box, then let the blocks fall.',
+    'paper-fold': 'Punched paper is unfolded: holes are mirrored across the fold lines.',
+    'tilt-maze': 'Tilt the board: marbles roll until a wall, the edge or another marble stops them.',
+    laser: 'Combine the mirrors, then trace the laser beam through them.',
+    'slide-puzzle': 'The empty square of a sliding puzzle follows a fixed sequence of moves.',
+    'line-clear': 'Drop the piece onto the pile; full rows disappear.',
+    'conditional-turn': 'How a glyph turns depends on its colour — and the colours move on their own.',
+    'operator-key': 'A small key in the middle panel says which operation builds the third panel.',
+    'string-ops': 'Bead strings are combined by an operation on sequences (reverse, interleave, remove…).',
+    cipher: 'Every symbol is encoded into another symbol while the word shifts.',
+    'toggle-grid': 'Pressing a lamp switches a hidden pattern of lamps around it.',
+    'if-then': 'What happens to the dots depends on the container they are in.',
+    'graph-parity': 'Edges combine; a node is black when an odd number of lines meets there.',
+    turtle: 'Each drawing is a walk; the third walk is built from the first two.',
+    pipes: 'Turn the pipes, then work out where the water flows.',
+    contagion: 'Infection spreads along the connections with a hidden rule.',
+    'maze-flood': 'Walls combine; the grey area is everything the water can reach.',
+    flipflop: 'Balls run through a board of switches — every switch a ball touches flips.',
   };
 
   /* ------------------------------------------------------------ progress storage */
-  const STORE = 'rmt-progress-v1';
+  const STORE = 'rmt-progress-v2';
   let progress = {};
   try {
     progress = JSON.parse(localStorage.getItem(STORE)) || {};
@@ -238,28 +263,29 @@
     const tiles = (set) =>
       all
         .filter((P) => P.set === set)
-        .filter((P) => (filt.diff ? P.difficulty === filt.diff : true))
+        .filter((P) => (filt.diff ? (filt.diff >= 6 ? P.difficulty >= 6 : P.difficulty === filt.diff) : true))
         .filter((P) => filt.show === 'all' || status(P.num) === filt.show)
         .map((P) => {
           const st = status(P.num);
           const badge = st === 'ok' ? '✔' : st === 'ko' ? '✘' : '';
-          return `<a class="tile s-${st}" href="#/p/${P.num}" title="${BLURB[P.famId] || ''}"><span class="num">${P.num}</span><span class="st">${stars(P.difficulty)}</span><span class="fn">${P.name}</span><span class="badge">${badge}</span></a>`;
+          return `<a class="tile s-${st}${P.difficulty >= 6 ? ' elite' : ''}" href="#/p/${P.num}" title="${BLURB[P.famId] || ''}"><span class="num">${P.num}</span><span class="st">${stars(P.difficulty)}</span><span class="fn">${P.name}</span><span class="badge">${badge}</span></a>`;
         })
         .join('');
+    const nFam = RM.SETS.reduce((n, s) => n + s.fams.filter((f) => RM.families[f]).length, 0);
     app.innerHTML = `
-      <h1>Hard Raven matrices — 120 puzzles</h1>
+      <h1>Hard Raven matrices — ${all.length} puzzles</h1>
       <p class="muted">Each puzzle is a 3 × 3 matrix with the last panel missing and 8 options, exactly one of which is correct. Every puzzle comes with a full explanation and the reason each wrong option fails.
-      The catalogue has 4 sets; each set contains one puzzle of each of the 30 rule families, sorted from hard (★★★) to extreme (★★★★★).</p>
+      The ${RM.SETS.length} sets each have their own theme: ${nFam} rule families in total, and no family appears in two sets. Sets A–D range from hard (★★★) to extreme (★★★★★); sets E–H are <b>elite</b> (★★★★★★ and beyond).</p>
       <div class="progress"><span style="width:${(100 * solved) / all.length}%"></span></div>
       <div class="muted" style="font-size:13px">${solved} / ${all.length} solved</div>
       <div class="filters">
         <span class="lbl">Show</span>${chip('show', 'all', 'All')}${chip('show', 'new', 'Not tried')}${chip('show', 'ko', 'Failed')}${chip('show', 'ok', 'Solved')}
-        <span class="lbl">Difficulty</span>${chip('diff', 0, 'All')}${chip('diff', 3, '★★★')}${chip('diff', 4, '★★★★')}${chip('diff', 5, '★★★★★')}
+        <span class="lbl">Difficulty</span>${chip('diff', 0, 'All')}${chip('diff', 3, '★★★')}${chip('diff', 4, '★★★★')}${chip('diff', 5, '★★★★★')}${chip('diff', 6, 'Elite ★6+')}
         <span class="sp" style="flex:1"></span><button class="chip" id="reset">Reset progress</button>
       </div>
       ${RM.SETS.map((s) => {
-        const t = tiles(s);
-        return t ? `<h2>Set ${s}</h2><div class="tiles">${t}</div>` : '';
+        const t = tiles(s.id);
+        return t ? `<h2 class="${s.elite ? 'elite-h' : ''}">Set ${s.id} — ${s.name}</h2><p class="muted set-blurb">${s.blurb}</p><div class="tiles">${t}</div>` : '';
       }).join('')}`;
     $$('.filters .chip[data-g]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -285,7 +311,7 @@
     const P = RM.puzzle(num);
     const go = (n) => (location.hash = '#/p/' + n);
     mountPuzzle(P, {
-      title: `Puzzle ${num} <span class="muted" style="font-weight:400;font-size:15px">· set ${P.set}</span>`,
+      title: `Puzzle ${num} <span class="muted" style="font-weight:400;font-size:15px">· set ${P.set} — ${(RM.SETS.find((s) => s.id === P.set) || {}).name || ''}</span>`,
       mode: 'practice',
       extraActions: `<button data-a="prev" ${num === 1 ? 'disabled' : ''}>‹ Prev</button><button data-a="next" ${num === RM.catalog.length ? 'disabled' : ''}>Next ›</button>`,
       onResult: (ok, secs) => record(num, ok, secs),
@@ -301,7 +327,15 @@
   function viewEndless() {
     const P = RM.randomPuzzle(endless.fam || undefined);
     const options = ['<option value="">All families (random)</option>']
-      .concat(RM.familyOrder.map((f) => `<option value="${f}" ${f === endless.fam ? 'selected' : ''}>${RM.families[f].name}</option>`))
+      .concat(
+        RM.SETS.map(
+          (s) =>
+            `<optgroup label="Set ${s.id} — ${s.name}">${s.fams
+              .filter((f) => RM.families[f])
+              .map((f) => `<option value="${f}" ${f === endless.fam ? 'selected' : ''}>${RM.families[f].name}</option>`)
+              .join('')}</optgroup>`
+        )
+      )
       .join('');
     mountPuzzle(P, {
       title: 'Endless',
@@ -335,7 +369,7 @@
       <div class="card">
         <div class="form-row"><span>Questions</span>${sel('n', [[10, '10'], [20, '20'], [30, '30'], [40, '40']])}</div>
         <div class="form-row"><span>Time per question</span>${sel('per', [[45, '45 s'], [60, '60 s'], [90, '90 s'], [120, '2 min']])}</div>
-        <div class="form-row"><span>Puzzles</span>${sel('src', [['catalogue', 'From the catalogue'], ['hard', 'Catalogue ★★★★★ only'], ['fresh', 'Freshly generated']])}</div>
+        <div class="form-row"><span>Puzzles</span>${sel('src', [['catalogue', 'Whole catalogue'], ['classic', 'Sets A–D'], ['hard', '★★★★★ only'], ['elite', 'Elite sets E–H'], ['fresh', 'Freshly generated']])}</div>
         <div class="form-row"><span>Total time</span><b>${mmss(testCfg.n * testCfg.per)}</b></div>
         <div class="actions"><button class="primary" id="start">Start test</button></div>
       </div>`;
@@ -356,7 +390,10 @@
       puzzles = fams.slice(0, testCfg.n).map((f) => RM.randomPuzzle(f));
     } else {
       let pool = RM.catalog.map((e) => e.num);
+      const eliteSet = (n) => (RM.SETS.find((s) => s.id === RM.catalog[n - 1].set) || {}).elite;
       if (testCfg.src === 'hard') pool = pool.filter((n) => RM.puzzle(n).difficulty === 5);
+      if (testCfg.src === 'elite') pool = pool.filter(eliteSet);
+      if (testCfg.src === 'classic') pool = pool.filter((n) => !eliteSet(n));
       pool.sort(() => Math.random() - 0.5);
       puzzles = pool.slice(0, testCfg.n).map((n) => RM.puzzle(n));
     }
@@ -489,8 +526,15 @@
         </ul>
         <h2>Keyboard</h2>
         <p><kbd>1</kbd>–<kbd>8</kbd> select an option · <kbd>Enter</kbd> check / next · <kbd>h</kbd> hint · <kbd>←</kbd> <kbd>→</kbd> previous / next puzzle · double-click an option to answer directly.</p>
-        <h2>The 30 rule families</h2>
-        <div class="fam-list">${RM.familyOrder.map((f) => `<div class="card"><b>${RM.families[f].name} <span class="stars">${stars(RM.families[f].difficulty)}</span></b><span class="muted">${BLURB[f] || ''}</span></div>`).join('')}</div>
+        <h2>The sets and their rule families</h2>
+        <p>Difficulty tiers: ★★★ hard · ★★★★ very hard · ★★★★★ extreme · <span class="elite-st">★★★★★★</span> elite · <span class="elite-st">★★★★★★★</span> nightmare.</p>
+        ${RM.SETS.map(
+          (s) => `<h3>Set ${s.id} — ${s.name}</h3><p class="muted">${s.blurb}</p>
+          <div class="fam-list">${s.fams
+            .filter((f) => RM.families[f])
+            .map((f) => `<div class="card"><b>${RM.families[f].name} <span class="stars">${stars(RM.families[f].difficulty)}</span></b><span class="muted">${BLURB[f] || ''}</span></div>`)
+            .join('')}</div>`
+        ).join('')}
       </div>`;
   }
 

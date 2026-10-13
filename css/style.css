@@ -73,6 +73,10 @@ h3 { font-size: 16px; margin: 22px 0 8px; }
 .tile.s-ok { border-color: #9fd8b1; background: var(--good-soft); }
 .tile.s-ko { border-color: #f1b1b1; background: var(--bad-soft); }
 .tile .badge { position: absolute; right: 8px; top: 7px; font-size: 13px; }
+.elite-st { color: #b91c1c; letter-spacing: 0; }
+.tile.elite { border-left: 3px solid #b91c1c; }
+h2.elite-h { color: #7f1d1d; }
+.set-blurb { margin: -4px 0 10px; font-size: 14px; }
 .progress { height: 8px; background: #e5e7eb; border-radius: 99px; overflow: hidden; margin: 10px 0 2px; max-width: 420px; }
 .progress span { display: block; height: 100%; background: var(--good); }
 

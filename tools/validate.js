@@ -20,6 +20,9 @@ const opt = (name, def) => {
 const sheetsDir = opt('--sheets', null);
 const randomN = +opt('--random', 20);
 const only = opt('--family', null);
+const onlySet = opt('--set', null);
+const blind = args.includes('--blind');
+const perSheet = +opt('--per-sheet', 6);
 
 (async () => {
   const browser = await chromium.launch();
@@ -27,10 +30,16 @@ const only = opt('--family', null);
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto('file://' + path.resolve(__dirname, 'harness.html'));
-  if (errors.length) throw new Error(errors.join('\n'));
+  if (errors.length) {
+    // When testing one family, errors in other (possibly half-written) family files are only reported.
+    const registered = only ? await page.evaluate((f) => !!(window.RM && window.RM.families[f]), only) : false;
+    if (!registered) throw new Error(errors.join('\n'));
+    console.log('WARNING: page errors in other files (ignored for --family ' + only + '):\n  ' + errors.join('\n  '));
+    errors.length = 0;
+  }
 
   // 1 + 2: catalogue
-  const report = await page.evaluate(async (only) => {
+  const report = await page.evaluate(async ([only, onlySet]) => {
     const RM = window.RM;
     const raster = (svg) =>
       new Promise((res, rej) => {
@@ -56,6 +65,7 @@ const only = opt('--family', null);
     const t0 = performance.now();
     for (const e of RM.catalog) {
       if (only && e.fam !== only) continue;
+      if (onlySet && e.set !== onlySet) continue;
       let P;
       try {
         P = RM.puzzle(e.num);
@@ -88,15 +98,16 @@ const only = opt('--family', null);
     }
     out.time = performance.now() - t0;
     return out;
-  }, only);
+  }, [only, onlySet]);
 
   // 3: random stress test
   const stress = await page.evaluate(
-    ({ n, only }) => {
+    ({ n, only, onlySet }) => {
       const RM = window.RM;
       const res = {};
       for (const f of RM.familyOrder) {
         if (only && f !== only) continue;
+        if (onlySet && !(RM.setOf(f) && RM.setOf(f).id === onlySet)) continue;
         const t0 = performance.now();
         let fails = 0;
         let attempts = 0;
@@ -114,7 +125,7 @@ const only = opt('--family', null);
       }
       return res;
     },
-    { n: randomN, only }
+    { n: randomN, only, onlySet }
   );
 
   console.log(`Catalogue built + rasterised in ${(report.time / 1000).toFixed(1)} s`);
@@ -142,10 +153,10 @@ const only = opt('--family', null);
   // 4: contact sheets
   if (sheetsDir) {
     fs.mkdirSync(sheetsDir, { recursive: true });
-    const nums = await page.evaluate((only) => window.RM.catalog.filter((e) => !only || e.fam === only).map((e) => e.num), only);
-    for (let i = 0; i < nums.length; i += 6) {
-      const chunk = nums.slice(i, i + 6);
-      await page.evaluate((chunk) => window.showSheet(chunk.map((n) => window.RM.puzzle(n))), chunk);
+    const nums = await page.evaluate(([only, onlySet]) => window.RM.catalog.filter((e) => (!only || e.fam === only) && (!onlySet || e.set === onlySet)).map((e) => e.num), [only, onlySet]);
+    for (let i = 0; i < nums.length; i += perSheet) {
+      const chunk = nums.slice(i, i + perSheet);
+      await page.evaluate(([chunk, blind]) => window.showSheet(chunk.map((n) => window.RM.puzzle(n)), blind), [chunk, blind]);
       await page.screenshot({ path: path.join(sheetsDir, `sheet-${String(chunk[0]).padStart(3, '0')}.png`), fullPage: true });
     }
     console.log(`\nContact sheets written to ${sheetsDir}`);
