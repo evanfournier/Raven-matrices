@@ -312,7 +312,16 @@
   function viewCatalogue() {
     clearTimers();
     keyHandler = null;
-    const all = RM.catalog.map((e) => RM.puzzle(e.num));
+    const all = RM.catalog
+      .map((e) => {
+        try {
+          return RM.puzzle(e.num);
+        } catch (err) {
+          console.error('puzzle ' + e.num + ' (' + e.fam + ') failed to build', err);
+          return null;
+        }
+      })
+      .filter(Boolean);
     const solved = all.filter((P) => status(P.num) === 'ok').length;
     const chip = (group, val, label) => `<button class="chip ${filt[group] === val ? 'on' : ''}" data-g="${group}" data-v="${val}">${label}</button>`;
     const tiles = (set) =>
