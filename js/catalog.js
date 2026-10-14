@@ -90,16 +90,16 @@
       name: 'Geometry & topology',
       elite: true,
       single: true,
-      blurb: 'Grandmaster. Rubber bands, insides and outsides, territories, gallery guards, holes, area and perimeter, star polygons, rosettes, leapers and jigsaw holes.',
-      fams: ['convex-hull', 'inside-out', 'voronoi', 'guards', 'holes', 'area-perimeter', 'star-polygon', 'rosettes', 'knight-reach', 'jigsaw'],
+      blurb: 'Grandmaster. Rubber bands, insides and outsides, territories, gallery guards, holes, lattice areas, star polygons, rosettes, leapers and jigsaw holes.',
+      fams: ['convex-hull', 'inside-out', 'voronoi', 'guards', 'holes', 'lattice-area', 'star-polygon', 'rosettes', 'knight-reach', 'jigsaw'],
     },
     {
       id: 'M',
       name: 'Logic & structure',
       elite: true,
       single: true,
-      blurb: 'Grandmaster. Complete sets, composed functions, XOR tables, magic dominoes, reading orders, Venn classification, ladders, growing trees, fractals and melodies.',
-      fams: ['full-set', 'plot-compose', 'xor-table', 'domino-magic', 'zigzag', 'venn-classify', 'ghost-leg', 'tree-growth', 'fractal-sub', 'melody'],
+      blurb: 'Grandmaster. Row and column counts, composed functions, XOR tables, magic dominoes, reading orders, Carroll diagrams, ladders, code breaking, fractals and melodies.',
+      fams: ['projections', 'plot-compose', 'xor-table', 'domino-magic', 'zigzag', 'carroll', 'ghost-leg', 'mastermind', 'fractal-sub', 'melody'],
     },
   ];
   const OLD_LETTER = ['A', 'B', 'C', 'D'];
