@@ -65,6 +65,56 @@
     contagion: 'Infection spreads along the connections with a hidden rule.',
     'maze-flood': 'Walls combine; the grey area is everything the water can reach.',
     flipflop: 'Balls run through a board of switches — every switch a ball touches flips.',
+    hanoi: 'Snapshots of a famous puzzle solved as fast as possible — but not every move is shown.',
+    langton: 'An ant turns and repaints according to the colour of its cell.',
+    josephus: 'A counting-out game around a circle: find the count and keep eliminating.',
+    'stack-machine': 'Decode unknown instructions from what they do to a stack.',
+    'state-machine': 'Run an input word through a diagram of states and arrows.',
+    'bubble-sort': 'Pebbles are sorted one step per column — but by which algorithm?',
+    cache: 'A three-slot memory receives requests: find the request pattern and what gets evicted.',
+    'look-and-say': 'Each panel describes the previous one out loud.',
+    automaton: 'Each cell of a strip looks at itself and its neighbours to decide its next colour.',
+    'gray-code': 'One shutter changes at a time, in the order of a hidden code.',
+    'cube-roll': 'The same die tumbles in a fixed direction; its hidden faces must be deduced.',
+    'polycube-rotation': 'A 2×2 analogy: the same 3D rotation applies to a grown object.',
+    'rolling-polygon': 'Polygons tip over their corners along the ground; track the marks.',
+    viewpoint: 'Three photos of the same table, taken from three sides.',
+    'relative-frame': 'One token follows the board’s compass, the other the page’s — and the board turns.',
+    shear: 'An unknown linear map is applied twice around the origin.',
+    'robot-arm': 'Each joint of the arm turns relative to the segment before it.',
+    cylinder: 'A band of symbols around a turning cylinder — only the front half is visible.',
+    attitude: 'Bank and pitch change steadily, shown on the artificial horizon and from outside.',
+    analogy: 'A 2×2 analogy where the change across and the change down both apply.',
+    pouring: 'Jugs of different widths pour into each other: count volumes, not heights.',
+    'gear-train': 'Direction and speed travel through gears, open belts and crossed belts.',
+    'colliding-beads': 'Beads slide, bounce off each other and fall off the ends of the wire.',
+    'traffic-jam': 'Cars advance in a hidden priority order; blocked cars wait.',
+    circuit: 'Switches combine logically; which bulbs light is decided by the circuit — short circuits included.',
+    'wave-sum': 'Two waves meet: read the curves precisely and combine them point by point.',
+    'moon-phase': 'The Moon orbits while the Sun moves; the phase seen from Earth follows.',
+    semaphores: 'Three signal posts, three rhythms.',
+    sandpile: 'Add two sandpiles, then let every overloaded cell topple.',
+    pinhole: 'A pinhole camera: the image is inverted and scaled by the distances.',
+    'convex-hull': 'Which pegs stay depends on the rubber band — and the band is always stretched around the pegs.',
+    'inside-out': 'A twisted loop turns; dots are black inside it and white outside.',
+    voronoi: 'Every square belongs to the nearest capital; the capitals move.',
+    guards: 'Guards patrol a gallery; what they see is stopped by walls.',
+    holes: 'Only true holes count — notches open to the outside are traps.',
+    'lattice-area': 'Areas of slanted lattice polygons follow arithmetic.',
+    'star-polygon': 'Points on a circle joined every k-th point.',
+    rosettes: 'The true symmetry of an ornament — petals are not the point.',
+    'knight-reach': 'A mystery leaper: mark the squares it needs exactly k moves to reach.',
+    jigsaw: 'Fit the piece into the hole — turning allowed, flipping not.',
+    projections: 'The third pattern has the row counts of the first and the column counts of the second.',
+    'plot-compose': 'Function graphs: the third is the composition of the first two.',
+    'xor-table': 'Every row changes in the same way from one column to the next.',
+    'domino-magic': 'Dominoes laid end to end, with every line adding up to the same total.',
+    zigzag: 'A sequence laid out in an unusual reading order.',
+    carroll: 'Two hidden questions decide where each figure is filed; the figure follows matrix rules.',
+    'ghost-leg': 'Follow each symbol down the ladder, crossing at every rung.',
+    mastermind: 'Eight scored guesses — the ninth panel is the secret code.',
+    'fractal-sub': 'Every square grows into four, according to its colour — twice.',
+    melody: 'Melodies played backwards, upside down or shifted.',
   };
 
   /* ------------------------------------------------------------ progress storage */
@@ -280,7 +330,7 @@
     app.innerHTML = `
       <h1>Hard Raven matrices — ${all.length} puzzles</h1>
       <p class="muted">Each puzzle is a 3 × 3 matrix with the last panel missing and 8 options, exactly one of which is correct. Every puzzle comes with a full explanation and the reason each wrong option fails.
-      The ${RM.SETS.length} sets each have their own theme: ${nFam} rule families in total, and no family appears in two sets. Sets A–D range from hard (★★★) to extreme (★★★★★); sets E–H are <b>elite</b> (★★★★★★ and beyond); sets I–M are the <b>grandmaster collection</b>: 50 one-of-a-kind puzzles, each with its own logic and design, some on 4 × 4 matrices.</p>
+      The ${RM.SETS.length} sets each have their own theme: ${nFam} rule families in total, and no family appears in two sets. Sets A–D range from hard (★★★) to extreme (★★★★★); sets E–H are <b>elite</b> (★★★★★★ and beyond); sets I–M are the <b>grandmaster collection</b>: 50 one-of-a-kind puzzles (★★★★★★ to ★★★★★★★★), each with its own logic and design, a few of them 2 × 2 analogies.</p>
       <div class="progress"><span style="width:${(100 * solved) / all.length}%"></span></div>
       <div class="muted" style="font-size:13px">${solved} / ${all.length} solved</div>
       <div class="filters">
@@ -373,8 +423,8 @@
       <p class="muted">Simulates exam conditions: a fixed time budget, no feedback until the end, then a full correction. You can skip questions and come back with ‹ Prev.</p>
       <div class="card">
         <div class="form-row"><span>Questions</span>${sel('n', [[10, '10'], [20, '20'], [30, '30'], [40, '40']])}</div>
-        <div class="form-row"><span>Time per question</span>${sel('per', [[45, '45 s'], [60, '60 s'], [90, '90 s'], [120, '2 min']])}</div>
-        <div class="form-row"><span>Puzzles</span>${sel('src', [['catalogue', 'Whole catalogue'], ['classic', 'Sets A–D'], ['hard', '★★★★★ only'], ['elite', 'Elite sets E–H'], ['fresh', 'Freshly generated']])}</div>
+        <div class="form-row"><span>Time per question</span>${sel('per', [[45, '45 s'], [60, '60 s'], [90, '90 s'], [120, '2 min'], [180, '3 min']])}</div>
+        <div class="form-row"><span>Puzzles</span>${sel('src', [['catalogue', 'Whole catalogue'], ['classic', 'Sets A–D'], ['hard', '★★★★★ only'], ['elite', 'Elite sets E–H'], ['grand', 'Grandmaster sets I–M'], ['fresh', 'Freshly generated']])}</div>
         <div class="form-row"><span>Total time</span><b>${mmss(testCfg.n * testCfg.per)}</b></div>
         <div class="actions"><button class="primary" id="start">Start test</button></div>
       </div>`;
@@ -395,10 +445,11 @@
       puzzles = fams.slice(0, testCfg.n).map((f) => RM.randomPuzzle(f));
     } else {
       let pool = RM.catalog.map((e) => e.num);
-      const eliteSet = (n) => (RM.SETS.find((s) => s.id === RM.catalog[n - 1].set) || {}).elite;
+      const setOfNum = (n) => RM.SETS.find((s) => s.id === RM.catalog[n - 1].set) || {};
       if (testCfg.src === 'hard') pool = pool.filter((n) => RM.puzzle(n).difficulty === 5);
-      if (testCfg.src === 'elite') pool = pool.filter(eliteSet);
-      if (testCfg.src === 'classic') pool = pool.filter((n) => !eliteSet(n));
+      if (testCfg.src === 'elite') pool = pool.filter((n) => setOfNum(n).elite && !setOfNum(n).single);
+      if (testCfg.src === 'grand') pool = pool.filter((n) => setOfNum(n).single);
+      if (testCfg.src === 'classic') pool = pool.filter((n) => !setOfNum(n).elite);
       pool.sort(() => Math.random() - 0.5);
       puzzles = pool.slice(0, testCfg.n).map((n) => RM.puzzle(n));
     }
