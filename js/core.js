@@ -73,6 +73,9 @@
   RM.range = (n) => Array.from({ length: n }, (_, i) => i);
   RM.grid3 = (fn) => [0, 1, 2].map((r) => [0, 1, 2].map((c) => fn(r, c)));
   RM.flat = (g) => [g[0][0], g[0][1], g[0][2], g[1][0], g[1][1], g[1][2], g[2][0], g[2][1]];
+  /* n×n helpers (for 2×2 analogies): gridN(n, fn) builds g[r][c]; flatN(g) lists every cell but the last. */
+  RM.gridN = (n, fn) => RM.range(n).map((r) => RM.range(n).map((c) => fn(r, c)));
+  RM.flatN = (g) => [].concat(...g).slice(0, g.length * g.length - 1);
   RM.sameArr = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
   RM.cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   RM.plural = (n, w, ws) => n + ' ' + (n === 1 ? w : ws || w + 's');
@@ -546,6 +549,8 @@
       const options = rng.shuffle(opts);
       const answerIndex = options.findIndex((o) => keyOf(o.spec) === answerKey);
       if (answerIndex < 0) continue;
+      const size = g.size || 3;
+      if (g.panels.length !== size * size - 1) throw new Error(famId + ': expected ' + (size * size - 1) + ' panels, got ' + g.panels.length);
       let panels;
       try {
         panels = g.panels.map((s) => g.render(s));
@@ -560,6 +565,7 @@
         name: g.name || fam.name,
         difficulty: g.difficulty || fam.difficulty,
         reading: g.reading || 'rows',
+        size,
         panels,
         options: options.map((o) => g.render(o.spec)),
         answerIndex,

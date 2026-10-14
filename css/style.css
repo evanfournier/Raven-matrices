@@ -11,6 +11,7 @@
   --bad: #dc2626;
   --bad-soft: #fdecec;
   --cell: 118px;
+  --cell2: 160px;
   --opt: 92px;
 }
 * { box-sizing: border-box; }
@@ -93,6 +94,8 @@ h2.elite-h { color: #7f1d1d; }
   display: grid; grid-template-columns: repeat(3, var(--cell)); gap: 6px;
   background: var(--card); padding: 10px; border-radius: 12px; border: 1px solid var(--line);
 }
+.matrix.m2 { grid-template-columns: repeat(2, var(--cell2)); }
+.matrix.m2 .cell { width: var(--cell2); height: var(--cell2); }
 .cell { width: var(--cell); height: var(--cell); border: 1px solid var(--line); border-radius: 4px; background: #fff; }
 .cell svg, .opt svg, .mini svg { width: 100%; height: 100%; display: block; }
 .cell.q { display: flex; align-items: center; justify-content: center; font-size: 44px; color: #93b4e8; background: #f5f8fe; border: 2px dashed #a8c2ee; }
@@ -135,7 +138,7 @@ table.results td, table.results th { border-bottom: 1px solid var(--line); paddi
 kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 12px; background: #fff; }
 
 @media (max-width: 760px) {
-  :root { --cell: 92px; --opt: 74px; }
+  :root { --cell: 92px; --cell2: 132px; --opt: 74px; }
   main { padding: 14px 10px 50px; }
   .side { min-width: 0; flex-basis: 100%; }
   .stats { margin-left: 0; width: 100%; }
@@ -144,6 +147,6 @@ kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4p
   .top { padding: 8px 12px; gap: 8px; }
 }
 @media (max-width: 380px) {
-  :root { --cell: 84px; --opt: 68px; }
+  :root { --cell: 84px; --cell2: 120px; --opt: 68px; }
   .options { gap: 6px; }
 }

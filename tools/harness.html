@@ -10,6 +10,7 @@
   .pz h4 { margin: 0 0 4px; font-size: 12px; }
   .row { display: flex; gap: 4px; }
   .m { display: grid; grid-template-columns: repeat(3, 84px); gap: 3px; }
+  .m.m2 { grid-template-columns: repeat(2, 128px); }
   .o { display: grid; grid-template-columns: repeat(4, 76px); gap: 3px; align-content: start; margin-left: 10px; }
   .m > div, .o > div { border: 1px solid #ddd; position: relative; }
   .m svg, .o svg { width: 100%; display: block; }
@@ -32,14 +33,64 @@
 <script src="../js/families-g2.js"></script>
 <script src="../js/families-h1.js"></script>
 <script src="../js/families-h2.js"></script>
+<script src="../js/gm/hanoi.js"></script>
+<script src="../js/gm/langton.js"></script>
+<script src="../js/gm/josephus.js"></script>
+<script src="../js/gm/stack-machine.js"></script>
+<script src="../js/gm/state-machine.js"></script>
+<script src="../js/gm/bubble-sort.js"></script>
+<script src="../js/gm/cache.js"></script>
+<script src="../js/gm/look-and-say.js"></script>
+<script src="../js/gm/automaton.js"></script>
+<script src="../js/gm/gray-code.js"></script>
+<script src="../js/gm/cube-roll.js"></script>
+<script src="../js/gm/polycube-rotation.js"></script>
+<script src="../js/gm/rolling-polygon.js"></script>
+<script src="../js/gm/viewpoint.js"></script>
+<script src="../js/gm/relative-frame.js"></script>
+<script src="../js/gm/shear.js"></script>
+<script src="../js/gm/robot-arm.js"></script>
+<script src="../js/gm/cylinder.js"></script>
+<script src="../js/gm/attitude.js"></script>
+<script src="../js/gm/analogy.js"></script>
+<script src="../js/gm/pouring.js"></script>
+<script src="../js/gm/gear-train.js"></script>
+<script src="../js/gm/colliding-beads.js"></script>
+<script src="../js/gm/traffic-jam.js"></script>
+<script src="../js/gm/circuit.js"></script>
+<script src="../js/gm/wave-sum.js"></script>
+<script src="../js/gm/moon-phase.js"></script>
+<script src="../js/gm/semaphores.js"></script>
+<script src="../js/gm/sandpile.js"></script>
+<script src="../js/gm/pinhole.js"></script>
+<script src="../js/gm/convex-hull.js"></script>
+<script src="../js/gm/inside-out.js"></script>
+<script src="../js/gm/voronoi.js"></script>
+<script src="../js/gm/guards.js"></script>
+<script src="../js/gm/holes.js"></script>
+<script src="../js/gm/lattice-area.js"></script>
+<script src="../js/gm/star-polygon.js"></script>
+<script src="../js/gm/rosettes.js"></script>
+<script src="../js/gm/knight-reach.js"></script>
+<script src="../js/gm/jigsaw.js"></script>
+<script src="../js/gm/projections.js"></script>
+<script src="../js/gm/plot-compose.js"></script>
+<script src="../js/gm/xor-table.js"></script>
+<script src="../js/gm/domino-magic.js"></script>
+<script src="../js/gm/zigzag.js"></script>
+<script src="../js/gm/carroll.js"></script>
+<script src="../js/gm/ghost-leg.js"></script>
+<script src="../js/gm/mastermind.js"></script>
+<script src="../js/gm/fractal-sub.js"></script>
+<script src="../js/gm/melody.js"></script>
 <script src="../js/catalog.js"></script>
 <script>
   window.showSheet = function (list, blind) {
     const out = document.getElementById('out');
     out.innerHTML = '<div class="sheet">' + list.map(function (P) {
-      const head = blind ? 'Puzzle #' + P.num + (P.reading === 'sequence' ? ' (SEQUENCE: read panels left→right, top→bottom)' : '')
+      const head = blind ? 'Puzzle #' + P.num + (P.reading === 'sequence' ? ' (SEQUENCE: read panels left→right, top→bottom)' : P.size === 2 ? ' (2×2 ANALOGY: A is to B as C is to ?)' : '')
         : '#' + (P.num || '-') + ' ' + P.famId + ' v' + P.variant + ' ★' + P.difficulty + ' (ans ' + (P.answerIndex + 1) + ')';
-      return '<div class="pz"><h4>' + head + '</h4><div class="row"><div class="m">' +
+      return '<div class="pz"><h4>' + head + '</h4><div class="row"><div class="m' + (P.size === 2 ? ' m2' : '') + '">' +
         P.panels.map(function (s) { return '<div>' + s + '</div>'; }).join('') + '<div class="q">?</div></div><div class="o">' +
         P.options.map(function (s, i) { return '<div class="' + (!blind && i === P.answerIndex ? 'ok' : '') + '"><span>' + (i + 1) + '</span>' + s + '</div>'; }).join('') +
         '</div></div></div>';
