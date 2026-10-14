@@ -10,6 +10,7 @@
   .pz h4 { margin: 0 0 4px; font-size: 12px; }
   .row { display: flex; gap: 4px; }
   .m { display: grid; grid-template-columns: repeat(3, 84px); gap: 3px; }
+  .m.m2 { grid-template-columns: repeat(2, 128px); }
   .o { display: grid; grid-template-columns: repeat(4, 76px); gap: 3px; align-content: start; margin-left: 10px; }
   .m > div, .o > div { border: 1px solid #ddd; position: relative; }
   .m svg, .o svg { width: 100%; display: block; }
@@ -32,14 +33,24 @@
 <script src="../js/families-g2.js"></script>
 <script src="../js/families-h1.js"></script>
 <script src="../js/families-h2.js"></script>
+<script src="../js/families-i1.js"></script>
+<script src="../js/families-i2.js"></script>
+<script src="../js/families-j1.js"></script>
+<script src="../js/families-j2.js"></script>
+<script src="../js/families-k1.js"></script>
+<script src="../js/families-k2.js"></script>
+<script src="../js/families-l1.js"></script>
+<script src="../js/families-l2.js"></script>
+<script src="../js/families-m1.js"></script>
+<script src="../js/families-m2.js"></script>
 <script src="../js/catalog.js"></script>
 <script>
   window.showSheet = function (list, blind) {
     const out = document.getElementById('out');
     out.innerHTML = '<div class="sheet">' + list.map(function (P) {
-      const head = blind ? 'Puzzle #' + P.num + (P.reading === 'sequence' ? ' (SEQUENCE: read panels left→right, top→bottom)' : '')
+      const head = blind ? 'Puzzle #' + P.num + (P.reading === 'sequence' ? ' (SEQUENCE: read panels left→right, top→bottom)' : P.size === 2 ? ' (2×2 ANALOGY: A is to B as C is to ?)' : '')
         : '#' + (P.num || '-') + ' ' + P.famId + ' v' + P.variant + ' ★' + P.difficulty + ' (ans ' + (P.answerIndex + 1) + ')';
-      return '<div class="pz"><h4>' + head + '</h4><div class="row"><div class="m">' +
+      return '<div class="pz"><h4>' + head + '</h4><div class="row"><div class="m' + (P.size === 2 ? ' m2' : '') + '">' +
         P.panels.map(function (s) { return '<div>' + s + '</div>'; }).join('') + '<div class="q">?</div></div><div class="o">' +
         P.options.map(function (s, i) { return '<div class="' + (!blind && i === P.answerIndex ? 'ok' : '') + '"><span>' + (i + 1) + '</span>' + s + '</div>'; }).join('') +
         '</div></div></div>';

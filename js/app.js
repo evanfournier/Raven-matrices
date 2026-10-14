@@ -5,7 +5,7 @@
   const app = document.getElementById('app');
   const $ = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
-  const TIER = { 3: 'Hard', 4: 'Very hard', 5: 'Extreme', 6: 'Elite', 7: 'Nightmare' };
+  const TIER = { 3: 'Hard', 4: 'Very hard', 5: 'Extreme', 6: 'Elite', 7: 'Nightmare', 8: 'Grandmaster' };
   const stars = (d) => (d > 5 ? `<span class="elite-st">${'★'.repeat(d)}</span>` : '★'.repeat(d) + '☆'.repeat(5 - d));
   const mmss = (s) => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -139,7 +139,12 @@
   function mountPuzzle(P, cfg) {
     clearTimers();
     const mode = cfg.mode;
-    const reading = P.reading === 'sequence' ? '<div class="note">This one is a <b>sequence</b>: read the panels in order, left → right, then top → bottom.</div>' : '';
+    const reading =
+      P.reading === 'sequence'
+        ? '<div class="note">This one is a <b>sequence</b>: read the panels in order, left → right, then top → bottom.</div>'
+        : P.size === 2
+          ? '<div class="note">A <b>2×2 analogy</b>: top-left is to top-right as bottom-left is to the missing panel.</div>'
+          : '';
     const buttons =
       mode === 'test'
         ? `<button class="primary" data-a="next">${cfg.last ? 'Finish' : 'Next'} ›</button><span class="sp"></span><button data-a="finish">End test</button>`
@@ -155,7 +160,7 @@
         </div>
         ${reading}
         <div class="pz-body">
-          <div class="matrix">${P.panels.map((s) => `<div class="cell">${s}</div>`).join('')}<div class="cell q" id="qcell">?</div></div>
+          <div class="matrix${P.size === 2 ? ' m2' : ''}">${P.panels.map((s) => `<div class="cell">${s}</div>`).join('')}<div class="cell q" id="qcell">?</div></div>
           <div class="side">
             <div class="label">Which option completes the matrix?</div>
             <div class="options">${P.options.map((s, i) => `<button class="opt" data-i="${i}" title="Option ${i + 1}"><span class="n">${i + 1}</span>${s}</button>`).join('')}</div>
@@ -268,14 +273,14 @@
         .map((P) => {
           const st = status(P.num);
           const badge = st === 'ok' ? '✔' : st === 'ko' ? '✘' : '';
-          return `<a class="tile s-${st}${P.difficulty >= 6 ? ' elite' : ''}" href="#/p/${P.num}" title="${BLURB[P.famId] || ''}"><span class="num">${P.num}</span><span class="st">${stars(P.difficulty)}</span><span class="fn">${P.name}</span><span class="badge">${badge}</span></a>`;
+          return `<a class="tile s-${st}${P.difficulty >= 6 ? ' elite' : ''}" href="#/p/${P.num}" title="${BLURB[P.famId] || ''}"><span class="num">${P.num}</span><span class="st">${stars(P.difficulty)}</span><span class="fn">${P.name}${P.size === 2 ? ' · 2×2' : ''}</span><span class="badge">${badge}</span></a>`;
         })
         .join('');
     const nFam = RM.SETS.reduce((n, s) => n + s.fams.filter((f) => RM.families[f]).length, 0);
     app.innerHTML = `
       <h1>Hard Raven matrices — ${all.length} puzzles</h1>
       <p class="muted">Each puzzle is a 3 × 3 matrix with the last panel missing and 8 options, exactly one of which is correct. Every puzzle comes with a full explanation and the reason each wrong option fails.
-      The ${RM.SETS.length} sets each have their own theme: ${nFam} rule families in total, and no family appears in two sets. Sets A–D range from hard (★★★) to extreme (★★★★★); sets E–H are <b>elite</b> (★★★★★★ and beyond).</p>
+      The ${RM.SETS.length} sets each have their own theme: ${nFam} rule families in total, and no family appears in two sets. Sets A–D range from hard (★★★) to extreme (★★★★★); sets E–H are <b>elite</b> (★★★★★★ and beyond); sets I–M are the <b>grandmaster collection</b>: 50 one-of-a-kind puzzles, each with its own logic and design, some on 4 × 4 matrices.</p>
       <div class="progress"><span style="width:${(100 * solved) / all.length}%"></span></div>
       <div class="muted" style="font-size:13px">${solved} / ${all.length} solved</div>
       <div class="filters">
@@ -527,7 +532,7 @@
         <h2>Keyboard</h2>
         <p><kbd>1</kbd>–<kbd>8</kbd> select an option · <kbd>Enter</kbd> check / next · <kbd>h</kbd> hint · <kbd>←</kbd> <kbd>→</kbd> previous / next puzzle · double-click an option to answer directly.</p>
         <h2>The sets and their rule families</h2>
-        <p>Difficulty tiers: ★★★ hard · ★★★★ very hard · ★★★★★ extreme · <span class="elite-st">★★★★★★</span> elite · <span class="elite-st">★★★★★★★</span> nightmare.</p>
+        <p>Difficulty tiers: ★★★ hard · ★★★★ very hard · ★★★★★ extreme · <span class="elite-st">★★★★★★</span> elite · <span class="elite-st">★★★★★★★</span> nightmare · <span class="elite-st">★★★★★★★★</span> grandmaster.</p>
         ${RM.SETS.map(
           (s) => `<h3>Set ${s.id} — ${s.name}</h3><p class="muted">${s.blurb}</p>
           <div class="fam-list">${s.fams

@@ -73,7 +73,7 @@ const perSheet = +opt('--per-sheet', 6);
         out.problems.push(`#${e.num} ${e.fam}: build failed: ${err.message}`);
         continue;
       }
-      if (P.panels.length !== 8) out.problems.push(`#${e.num}: ${P.panels.length} panels`);
+      if (P.panels.length !== P.size * P.size - 1) out.problems.push(`#${e.num}: ${P.panels.length} panels for a ${P.size}x${P.size} matrix`);
       if (P.options.length !== 8) out.problems.push(`#${e.num}: ${P.options.length} options`);
       if (P.answerIndex < 0 || P.answerIndex > 7) out.problems.push(`#${e.num}: bad answer index`);
       P.flaws.forEach((f, i) => {
