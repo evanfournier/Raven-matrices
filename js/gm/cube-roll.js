@@ -74,7 +74,7 @@
     { id: 'disc', name: 'black disc' },
     { id: 'ring', name: 'ring' },
     { id: 'plus', name: 'plus' },
-    { id: 'dots', name: 'four dots' },
+    { id: 'dots', name: 'four-dot pattern' },
     { id: 'square', name: 'black square' },
     { id: 'bars', name: 'grid (#)' },
   ];
@@ -167,15 +167,18 @@
       const M1 = MOVES[mv[0]].p;
       const M2 = MOVES[mv[1]].p;
       const base = rng.shuffle([0, 1, 2, 3, 4, 5]);
-      const starts = rng.sample(GROUP, 3);
-      const F = starts.map((g) => {
-        const s0 = app(g, base);
-        const s1 = app(M1, s0);
-        return [s0, s1, app(M2, s1)];
-      });
-      const V = F.map((row) => row.map(vis));
-      const allViews = RM.flat(V).map(vkey);
-      RM.need(new Set(allViews).size === 9);
+      let F;
+      let V;
+      for (let tries = 0; ; tries++) {
+        RM.need(tries < 40);
+        F = rng.sample(GROUP, 3).map((g) => {
+          const s0 = app(g, base);
+          const s1 = app(M1, s0);
+          return [s0, s1, app(M2, s1)];
+        });
+        V = F.map((row) => row.map(vis));
+        if (new Set(RM.flat(V).concat([V[2][2]]).map(vkey)).size === 9) break;
+      }
       const ans = F[2][2];
       const s32 = F[2][1];
       const ansV = V[2][2];
@@ -248,67 +251,90 @@
       RM.needNoConflict(RM.grid3((r, k) => (r === 2 && k === 2 ? undefined : vkey(V[r][k].slice().sort()))), vkey(ansV.slice().sort()), 'categorical');
       RM.needNoConflict(RM.grid3((r, k) => (r === 2 && k === 2 ? undefined : vkey(V[r][k]))), vkey(ansV), 'categorical');
 
-      /* ------------------------------------------------ distractors */
+      /* ------------------------------------------------ distractors
+       * Two clusters, so the answer is not the "average" option: the answer with 2 impossible neighbours (a hidden
+       * face guessed wrong, a mirror image), a tempting wrong move W with 2 impossible neighbours of its own, and
+       * 2 more real positions of the die reached by other wrong moves. */
       const ansK = vkey(ansV);
-      const cands = [];
-      const add = (tier, t, why) => {
-        if (!t) return;
-        const k = vkey(t);
-        if (k === ansK) return;
-        const prev = cands.find((c) => c.k === k);
-        if (prev) {
-          if (prev.why.indexOf(why) < 0 && prev.why.length < 2 && tier <= prev.tier) prev.why.push(why);
-          return;
-        }
-        cands.push({ k, t, tier, why: [why] });
+      const at = (p) => (POS[p] === 'top' ? 'on top' : 'at the ' + POS[p]);
+      const orients = GROUP.map((g) => vkey(vis(app(g, ans))));
+      const flawOf = (t) => {
+        const out = [];
+        [[0, 1], [0, 2], [1, 2]].forEach(([i, j]) => {
+          if (oppOf(t[i]) === t[j]) out.push(`${the(t[i])} and ${the(t[j])} are opposite faces (they are never seen together), so they cannot both be visible`);
+        });
+        if (out.length) return out;
+        if (!orients.includes(vkey(t))) return [`a mirror image of the real die: with ${the(t[0])} on top and ${the(t[1])} at the front-left, the real die shows ${the(oppOf(t[2]))} at the front-right`];
+        return null;
       };
       const place = (t) => `${the(t[0])} on top, ${the(t[1])} front-left and ${the(t[2])} front-right`;
-      const correct = 'the 2nd die of row 3 must end with ' + place(ansV);
-      // impossible faces: one of the 3 hidden symbols replaces a visible one
-      ansV.forEach((x, i) =>
-        ans
-          .filter((y) => !ansV.includes(y))
-          .forEach((y) => {
-            const t = ansV.slice();
-            t[i] = y;
-            const z = oppOf(y);
-            const why =
-              z === x
-                ? `${the(y)} is on the face opposite ${the(x)} — it is hidden ${POS[OPP[VIS[i]]] === 'underneath' ? 'underneath' : 'at the ' + POS[OPP[VIS[i]]]}, and ${the(x)} must be ${POS[VIS[i]] === 'top' ? 'on top' : 'at the ' + POS[VIS[i]]}`
-                : `${the(y)} and ${the(z)} are opposite faces (they are never seen together), so they cannot both be visible`;
-            add(fresh.includes(x) ? 0 : 1, t, why);
-          })
-      );
-      // two faces swapped (mirror images of the right die)
-      [[0, 1], [1, 2], [0, 2]].forEach(([i, j]) => {
-        const t = ansV.slice();
-        [t[i], t[j]] = [t[j], t[i]];
-        add(1, t, `${the(ansV[i])} and ${the(ansV[j])} have swapped places (a mirror image — no real turn of the die gives this)`);
-      });
-      // wrong move applied to the 2nd die of row 3
+      const valid = [];
+      const addV = (tier, t, why) => {
+        const k = vkey(t);
+        if (k === ansK || valid.some((c) => c.k === k)) return;
+        valid.push({ k, t, tier, why: [why] });
+      };
       Object.keys(MOVES).forEach((k) => {
         if (k === mv[1]) return;
         const why = k === mv[0] ? `the die repeated the first move; from column 2 to column 3 it ${MOVES[mv[1]].name}` : `this is the die after it ${MOVES[k].name}; from column 2 to column 3 it ${MOVES[mv[1]].name}`;
-        add(k === mv[0] || SPINS.includes(k) !== SPINS.includes(mv[1]) ? 1 : 2, vis(app(MOVES[k].p, s32)), why);
+        addV(k === mv[0] || SPINS.includes(k) !== SPINS.includes(mv[1]) ? 1 : 2, vis(app(MOVES[k].p, s32)), why);
       });
-      // right top, but turned on the spot
-      SPINS.forEach((k) => add(1, vis(app(MOVES[k].p, ans)), `the die is turned a quarter-turn on the spot: ${correct}`));
-      // move applied to the wrong die / too often / in the wrong order
-      add(1, vis(app(M2, F[2][0])), 'the second move was applied to the 1st die of row 3 instead of the 2nd');
-      if (mv[0] !== mv[1]) add(1, vis(app(M1, app(M2, F[2][0]))), 'the two moves were made in the wrong order');
-      add(2, vis(app(M2, ans)), 'the die made one move too many');
-      add(2, V[2][1], 'this is the 2nd die of row 3 unchanged — the die has not moved');
-      add(3, V[0][2], 'this is the last die of row 1; it does not follow from the 2nd die of row 3');
-      add(3, V[1][2], 'this is the last die of row 2; it does not follow from the 2nd die of row 3');
-      const pick = [];
-      [0, 1, 2, 3].forEach((tier) => rng.shuffle(cands.filter((c) => c.tier === tier)).forEach((c) => pick.length < 7 && pick.push(c)));
-      RM.need(pick.length === 7);
+      SPINS.forEach((k) => addV(1, vis(app(MOVES[k].p, ans)), `the die is turned a quarter-turn on the spot: after the move it shows ${place(ansV)}`));
+      addV(1, vis(app(M2, F[2][0])), 'the second move was applied to the 1st die of row 3 instead of the 2nd');
+      if (mv[0] !== mv[1]) addV(1, vis(app(M1, app(M2, F[2][0]))), 'the two moves were made in the wrong order');
+      addV(2, vis(app(M2, ans)), 'the die made one move too many');
+      addV(3, V[2][1], 'this is the 2nd die of row 3 unchanged — the die has not moved');
+      addV(3, V[0][2], 'this is the last die of row 1; it does not follow from the 2nd die of row 3');
+      addV(3, V[1][2], 'this is the last die of row 2; it does not follow from the 2nd die of row 3');
+      // impossible dice next to a real position t: one face replaced by a hidden symbol, or two faces swapped
+      const around = (t, isAns) => {
+        const out = [];
+        t.forEach((x, i) =>
+          [0, 1, 2, 3, 4, 5]
+            .filter((y) => !t.includes(y))
+            .forEach((y) => {
+              const u = t.slice();
+              u[i] = y;
+              let why = flawOf(u);
+              if (isAns && oppOf(y) === x) why = [`${the(y)} is on the face opposite ${the(x)} — it is hidden ${POS[OPP[VIS[i]]] === 'underneath' ? 'underneath' : 'at the ' + POS[OPP[VIS[i]]]}, and ${the(x)} must be ${at(VIS[i])}`];
+              out.push({ k: vkey(u), t: u, tier: isAns && fresh.includes(x) ? 0 : 1, why });
+            })
+        );
+        [[0, 1], [1, 2], [0, 2]].forEach(([i, j]) => {
+          const u = t.slice();
+          [u[i], u[j]] = [u[j], u[i]];
+          out.push({ k: vkey(u), t: u, tier: 1, why: [`${the(t[i])} and ${the(t[j])} have swapped places — a mirror image, no real turn of the die gives this`] });
+        });
+        return out;
+      };
+      const nearAns = around(ansV, true);
+      const byTier = (arr) => [0, 1, 2, 3].reduce((acc, tier) => acc.concat(rng.shuffle(arr.filter((c) => c.tier === tier))), []);
+      const score = (o, all) => [0, 1, 2].reduce((acc, i) => acc + all.filter((q) => q.t[i] === o.t[i]).length, 0);
+      let pick = null;
+      for (let tries = 0; tries < 40 && !pick; tries++) {
+        const vs = byTier(valid);
+        const W = vs[rng.int(0, Math.min(2, vs.length - 1))];
+        if (!W) break;
+        const sel = [];
+        const take = (c) => {
+          if (c && c.k !== ansK && !sel.some((q) => q.k === c.k)) sel.push(c);
+        };
+        const na = byTier(nearAns);
+        take(na[0]);
+        take(rng.pick(na.slice(1)));
+        take(W);
+        rng.shuffle(around(W.t, false)).forEach((c) => sel.length < 5 && take(c));
+        vs.forEach((c) => sel.length < 7 && take(c));
+        if (sel.length < 7) continue;
+        const all = [{ t: ansV }].concat(sel);
+        if (![0, 1, 2].every((i) => sel.some((c) => c.t[i] === ansV[i]))) continue;
+        const s0 = score(all[0], all);
+        if (!sel.some((c) => score(c, all) >= s0)) continue;
+        pick = sel;
+      }
+      RM.need(pick);
+      pick.forEach((c) => RM.need(c.why && c.why.length));
       const opts = [{ v: ansV }].concat(pick.map((c) => ({ v: c.t })));
-      // no face value may be shown only by the answer, and the answer must not be the "majority" option
-      [0, 1, 2].forEach((i) => RM.need(pick.some((c) => c.t[i] === ansV[i])));
-      const score = (o) => [0, 1, 2].reduce((acc, i) => acc + opts.filter((q) => q.v[i] === o.v[i]).length, 0);
-      const sc = opts.map(score);
-      RM.need(sc.slice(1).some((x) => x >= sc[0]));
 
       /* ------------------------------------------------ correction */
       const ex = (s, t, m) => {
@@ -325,7 +351,7 @@
       const rules = [
         {
           k: 'One die',
-          t: 'all the pictures show the <b>same die</b>, seen from the same corner (top, front-left and front-right faces). Each symbol stays on its own face, so two symbols seen together are never opposite: <b>a symbol is opposite the one symbol it never appears with</b>.',
+          t: 'all the pictures show the <b>same die</b>, seen from the same corner (top, front-left and front-right faces); each symbol is drawn flat on its face, in perspective (on the top face the plus looks like an ×, the square like a diamond). Each symbol stays on its own face, so two symbols seen together are never opposite: <b>a symbol is opposite the one symbol it never appears with</b>.',
         },
       ];
       if (mv[0] === mv[1])
@@ -337,7 +363,8 @@
       const oppTxt = fresh.map((x) => {
         const [p, q] = evidence(x);
         const others = [...nb[p]].sort((a, b) => a - b).map(the);
-        return `${the(p)} is seen next to ${others.slice(0, 3).join(', ')} and ${others[3]}, but never next to ${the(q)}: <b>${nm(p)} and ${nm(q)} are opposite faces</b>.`;
+        const tail = RM.flat(V).some((t) => t.includes(q)) ? `but never next to ${the(q)}` : `so the face opposite it is the one symbol that appears in no picture at all, ${the(q)}`;
+        return `${the(p)} is seen next to ${others.slice(0, 3).join(', ')} and ${others[3]}, ${tail}: <b>${nm(p)} and ${nm(q)} are opposite faces</b>.`;
       });
       rules.push({ k: 'Hidden face', t: oppTxt.join(' ') });
       const steps = [];

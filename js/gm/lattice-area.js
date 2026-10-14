@@ -153,7 +153,7 @@
     const pool = {};
     const seen = new Set();
     let id = 0;
-    for (let it = 0; it < 24000; it++) {
+    for (let it = 0; it < 12000; it++) {
       const n = it % 9 < 2 ? 3 + (it % 2) : 4 + (it % 4);
       const v = walk(rng, n);
       if (!v) continue;
@@ -172,6 +172,18 @@
   const bucket = (n, a2) => {
     if (!POOL) POOL = buildPool();
     return POOL[n + ':' + a2] || [];
+  };
+  /* congruence class of a pool shape (same polygon up to rotation / reflection), computed lazily */
+  const cid = (s) => {
+    if (s.cid === undefined) {
+      let best = null;
+      for (let t = 0; t < 8; t++) {
+        const k = canon(transform(s.v, s.w, s.h, t));
+        if (best === null || k < best) best = k;
+      }
+      s.cid = best;
+    }
+    return s.cid;
   };
 
   /* canonical key of a vertex cycle (independent of start vertex and direction) */
@@ -220,77 +232,63 @@
       const RULE = ['sum', 'equal', 'diff', 'prog'][V];
       const latinCounts = V !== 2;
 
-      /* ---- area grid (half squares) */
-      let A;
-      if (RULE === 'sum') {
-        A = [0, 1, 2].map(() => {
-          const a = rng.int(5, 16);
-          const b = rng.int(5, 16);
-          return [a, b, a + b];
-        });
-        RM.need(A.every((r) => r[2] <= 30));
-      } else if (RULE === 'equal') {
-        const vals = rng.shuffle(RM.range(10).map((i) => 8 + 2 * i + (rng.chance(0.5) ? 1 : 0))).slice(0, 3);
-        A = vals.map((x) => [x, x, x]);
-      } else if (RULE === 'diff') {
-        A = [0, 1, 2].map(() => {
-          const b = rng.int(4, 14);
-          const c = rng.int(4, 16);
-          return [b + c, b, c];
-        });
-        RM.need(A.every((r) => r[0] <= 30));
-      } else {
-        A = [0, 1, 2].map(() => {
-          const d = rng.pick([-6, -5, -4, -3, -2, 2, 3, 4, 5, 6]);
-          const a = rng.int(4, 30);
-          return [a, a + d, a + 2 * d];
-        });
-        RM.need(A.every((r) => r.every((x) => x >= 4 && x <= 30)));
-        RM.need(new Set(A.map((r) => r[1] - r[0])).size >= 2);
-      }
-      const flatA = [].concat(...A);
-      RM.need(flatA.filter((x) => x % 2).length >= 3); // half squares must matter
-      const ansA = A[2][2];
-      RM.needUnique(A, ansA, 'numeric');
-      RM.needUnique(A.map((r) => r.map((x) => x / 2)), ansA / 2, 'numeric');
-
       /* ---- corner counts */
       let C;
       let cvals;
       if (latinCounts) {
-        cvals = rng.sample(V === 1 ? [3, 4, 5, 6, 7] : [4, 5, 6, 7], 3).sort((a, b) => a - b);
+        cvals = rng.sample([4, 5, 6, 7], 3).sort((a, b) => a - b);
         C = RM.latinGrid(rng, cvals);
         RM.needUnique(C, C[2][2], 'numeric');
       } else {
-        C = RM.grid3(() => rng.int(4, 7));
+        // corners are a pure decoy here: no simple rule may fit them
+        for (let t = 0; t < 60; t++) {
+          C = RM.grid3(() => rng.int(4, 7));
+          if (!RM.preds.numeric(RM.grid3((r, c) => (r === 2 && c === 2 ? undefined : C[r][c]))).length) break;
+          C = null;
+        }
+        RM.need(C);
         cvals = [4, 5, 6, 7];
       }
       const ansN = C[2][2];
-      for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) RM.need(bucket(C[r][c], A[r][c]).length > 0);
 
-      /* ---- the 8 visible polygons */
-      const used = new Set();
-      const pickShape = (n, a2, pref) => {
-        let b = bucket(n, a2).filter((s) => !used.has(s.id));
-        if (pref) {
-          const p = b.filter((s) => (s.w === pref[0] && s.h === pref[1]) || (s.w === pref[1] && s.h === pref[0]));
-          if (p.length) b = p;
-        }
-        if (!b.length) return null;
-        return rng.pick(b);
+      /* ---- area grid (half squares), local retries */
+      const drawA = () => {
+        if (RULE === 'sum')
+          return [0, 1, 2].map(() => {
+            const a = rng.int(5, 15);
+            const b = rng.int(5, 15);
+            return [a, b, a + b];
+          });
+        if (RULE === 'equal') return rng.sample(RM.range(20), 3).map((i) => [8 + i, 8 + i, 8 + i]);
+        if (RULE === 'diff')
+          return [0, 1, 2].map(() => {
+            const b = rng.int(4, 13);
+            const c = rng.int(4, 14);
+            return [b + c, b, c];
+          });
+        return [0, 1, 2].map(() => {
+          const d = rng.pick([-6, -5, -4, -3, -2, 2, 3, 4, 5, 6]);
+          const a = d > 0 ? rng.int(4, 30 - 2 * d) : rng.int(4 - 2 * d, 30);
+          return [a, a + d, a + 2 * d];
+        });
       };
-      const panelSpecs = [];
-      for (let i = 0; i < 8; i++) {
-        const r = Math.floor(i / 3);
-        const c = i % 3;
-        const s = pickShape(C[r][c], A[r][c]);
-        RM.need(s);
-        used.add(s.id);
-        panelSpecs.push(place(rng, s, rng.int(0, 7)));
+      const aOk = (A) => {
+        if (![].concat(...A).every((x) => x >= 4 && x <= 30)) return false;
+        if ([].concat(...A).filter((x) => x % 2).length < 3) return false; // half squares must matter
+        if (RULE === 'prog' && new Set(A.map((r) => r[1] - r[0])).size < 2) return false;
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) if (bucket(C[r][c], A[r][c]).length < (r + c === 4 ? 3 : 2)) return false;
+        if (latinCounts && cvals.some((n) => n !== ansN && !bucket(n, A[2][2]).length)) return false;
+        return RM.unique(A, A[2][2], 'numeric') && RM.unique(A.map((r) => r.map((x) => x / 2)), A[2][2] / 2, 'numeric');
+      };
+      let A = null;
+      for (let t = 0; t < 80 && !A; t++) {
+        const a = drawA();
+        if (aOk(a)) A = a;
       }
-      const M = panelSpecs.map((s) => measure(s.v));
+      RM.need(A);
+      const ansA = A[2][2];
 
-      /* ---- answer: chosen so that no decoy attribute suggests anything else */
+      /* ---- decoy attributes: no simple rule on them may point to anything but the answer */
       const DECOYS = [
         ['I', (m) => m.I],
         ['B', (m) => m.B],
@@ -298,30 +296,102 @@
         ['w', (m) => m.w],
         ['h', (m) => m.h],
         ['box', (m) => m.w * m.h],
-        ['x', (m) => m.minx],
-        ['y', (m) => m.miny],
-        ['cx', (m) => 2 * m.minx + m.w],
-        ['cy', (m) => 2 * m.miny + m.h],
+        ['wh', (m) => m.w + m.h],
+        ['x', (m) => m.minx, 1],
+        ['y', (m) => m.miny, 1],
+        ['cx', (m) => 2 * m.minx + m.w, 1],
+        ['cy', (m) => 2 * m.miny + m.h, 1],
         ['sl', (m) => m.sl],
+        ['hv', (m) => m.n - m.sl],
         ['reflex', (m) => m.reflex],
       ];
       if (!latinCounts) DECOYS.push(['n', (m) => m.n]);
-      const decoyOk = (am) =>
-        DECOYS.every(([, f]) => {
-          const g = RM.grid3((r, c) => (r === 2 && c === 2 ? f(am) : f(M[r * 3 + c])));
-          return RM.unique(g, f(am), 'numeric', undefined, true);
-        });
+
+      /* ---- the 8 visible polygons (no two congruent): shapes first, then positions, both tuned so that
+       * the decoy attributes follow no simple rule (or only rules that agree with the answer) */
+      const evalD = (list, MM) => {
+        let bad = 0;
+        const req = [];
+        for (const [, f, pos] of list) {
+          const P = RM.preds.numeric(RM.grid3((r, c) => (r === 2 && c === 2 ? undefined : f(MM[r * 3 + c]))));
+          if (!P.length) continue;
+          if (P.some((p) => p[1] !== P[0][1])) bad++;
+          else req.push([f, P[0][1], pos]);
+        }
+        return { bad, req, score: bad * 10 + req.length };
+      };
+      const SHAPE_D = DECOYS.filter((d) => !d[2]);
+      const POS_D = DECOYS.filter((d) => d[2]);
+      const cells = [];
+      const drawCell = (i) => {
+        const b = bucket(C[Math.floor(i / 3)][i % 3], A[Math.floor(i / 3)][i % 3]).filter((s) => !cells.some((q, j) => j !== i && q && q.cid === cid(s)));
+        if (!b.length) return null;
+        const s = rng.pick(b);
+        const tr = rng.int(0, 7);
+        const v = transform(s.v, s.w, s.h, tr);
+        return { s, tr, cid: cid(s), m: measure(v) };
+      };
+      for (let i = 0; i < 8; i++) cells[i] = drawCell(i);
+      RM.need(cells.every((q) => q));
+      let cur = evalD(SHAPE_D, cells.map((q) => q.m));
+      for (let it = 0; it < 70 && cur.score > 1; it++) {
+        const i = rng.int(0, 7);
+        const old = cells[i];
+        const nq = drawCell(i);
+        if (!nq) continue;
+        cells[i] = nq;
+        const e = evalD(SHAPE_D, cells.map((q) => q.m));
+        if (e.score <= cur.score) cur = e;
+        else cells[i] = old;
+      }
+      RM.need(cur.bad === 0);
+      let best = null;
+      for (let it = 0; it < 30 && !(best && best.score === 0); it++) {
+        const off = cells.map((q) => [rng.int(0, N - q.m.w), rng.int(0, N - q.m.h)]);
+        const e = evalD(POS_D, cells.map((q, i) => ({ minx: off[i][0], miny: off[i][1], w: q.m.w, h: q.m.h })));
+        if (!best || e.score < best.score) best = Object.assign(e, { off });
+      }
+      RM.need(best.bad === 0);
+      const panelSpecs = cells.map((q, i) => place(rng, q.s, q.tr, best.off[i][0], best.off[i][1]));
+      const M = panelSpecs.map((s) => measure(s.v));
+      const used = new Set(cells.map((q) => q.cid));
+
+      /* ---- the answer: right area and corner count, agreeing with any rule a decoy happens to fit */
       let answer = null;
-      const ab = rng.shuffle(bucket(ansN, ansA).filter((s) => !used.has(s.id)));
-      for (let t = 0; t < 40 && !answer && ab.length; t++) {
-        const s = ab[t % ab.length];
-        const cand = place(rng, s, rng.int(0, 7));
-        if (decoyOk(measure(cand.v))) answer = cand;
+      {
+        const fixed = cur.req;
+        const moving = best.req;
+        const ab = rng.shuffle(bucket(ansN, ansA).filter((s) => !used.has(cid(s))));
+        for (let k = 0; k < ab.length && !answer; k++) {
+          for (const tr of rng.shuffle(RM.range(8))) {
+            const v0 = transform(ab[k].v, ab[k].w, ab[k].h, tr);
+            if (!fixed.every(([f, want]) => f(measure(v0)) === want)) continue;
+            const W = tr & 4 ? ab[k].h : ab[k].w;
+            const H = tr & 4 ? ab[k].w : ab[k].h;
+            const spots = [];
+            for (let ox = 0; ox <= N - W; ox++)
+              for (let oy = 0; oy <= N - H; oy++) {
+                const m = { minx: ox, miny: oy, w: W, h: H };
+                if (moving.every(([f, want]) => f(m) === want)) spots.push([ox, oy]);
+              }
+            if (!spots.length) continue;
+            const [ox, oy] = rng.pick(spots);
+            answer = place(rng, ab[k], tr, ox, oy);
+            used.add(cid(ab[k]));
+            break;
+          }
+        }
       }
       RM.need(answer);
-      used.add(answer.sid);
       const am = measure(answer.v);
       const pref = [am.w, am.h];
+      const pickShape = (n, a2) => {
+        let b = bucket(n, a2).filter((s) => !used.has(cid(s)));
+        const p = b.filter((s) => (s.w === pref[0] && s.h === pref[1]) || (s.w === pref[1] && s.h === pref[0]));
+        if (p.length && rng.chance(0.7)) b = p;
+        if (!b.length) return null;
+        return rng.pick(b);
+      };
 
       /* ---- distractors */
       const isRight = (m) => m.a2 === ansA && (!latinCounts || m.n === ansN);
@@ -337,9 +407,9 @@
       };
       const add = (tag, n, a2, why, prio) => {
         if (a2 < 4 || a2 > 36) return;
-        const s = pickShape(n, a2, pref);
+        const s = pickShape(n, a2);
         if (!s) return;
-        used.add(s.id);
+        used.add(cid(s));
         const sp = place(rng, s, rng.int(0, 7));
         const m = measure(sp.v);
         cands.push({ tag, spec: sp, m, flaws: flawsOf(m, why), prio: prio + rng.next() });
@@ -408,9 +478,11 @@
       RM.need(chosen.length === 7);
       // the answer's features must not be rare among the options
       const optM = [am].concat(chosen.map((c) => c.m));
-      RM.need(optM.filter((m) => m.n === ansN).length >= 2 && optM.filter((m) => m.n === ansN).length <= 4);
+      RM.need(optM.filter((m) => m.n === ansN).length >= 2 && (!latinCounts || optM.filter((m) => m.n === ansN).length <= 4));
       RM.need(optM.filter((m) => m.w === am.w && m.h === am.h).length >= 2 || optM.filter((m) => m.w * m.h === am.w * am.h).length >= 2);
       RM.need(chosen.every((c) => c.flaws.length));
+      // a decoy that happens to fit a rule (always one agreeing with the answer) must not single out the answer
+      RM.need(cur.req.concat(best.req).every(([f, want]) => optM.filter((m) => f(m) === want).length >= 2));
 
       /* ---- correction */
       const rowTxt = (r) => {
@@ -437,7 +509,7 @@
       const rules = [
         {
           k: 'Measure',
-          t: 'each polygon has its corners on the dots; one grid square (between four neighbouring dots) is the unit. Measure the surface: cut it into rectangles and right-angled triangles — a slanted edge cuts its little w × h box exactly in half (area w × h ÷ 2) — or use Pick’s formula: <b>area = dots inside + dots on the outline ÷ 2 − 1</b>.',
+          t: 'each polygon has its corners on the dots; one grid square (between four neighbouring dots) is the unit. Measure the surface: cut it into rectangles and right-angled triangles — a slanted edge cuts its little w × h box exactly in half (area w × h ÷ 2) — or use Pick’s formula: <b>area = dots inside + dots on the outline (corners included) ÷ 2 − 1</b>.',
         },
         { k: 'Areas', t: `${RT}. Row 1: ${rowTxt(0)}. Row 2: ${rowTxt(1)}.` },
       ];
@@ -448,7 +520,7 @@
         });
       rules.push({
         k: 'Decoys',
-        t: `${latinCounts ? '' : 'the number of corners, '}the dots inside, the size and position of the polygon and the number of slanted edges follow no rule.`,
+        t: `${latinCounts ? '' : 'the number of corners, '}the number of dots inside, the size and position of the polygon and the number of slanted edges are only there to distract: none of them leads to a different answer.`,
       });
       rules.push({
         k: 'Row 3',
@@ -460,7 +532,7 @@
       });
 
       return {
-        difficulty: V === 2 ? 6 : 7,
+        difficulty: V === 1 || V === 2 ? 6 : 7,
         hint: 'measure each surface in grid squares — a slanted edge cuts its little box exactly in half.',
         panels: panelSpecs,
         answer,
@@ -469,8 +541,11 @@
         render(sp) {
           const pic = new RM.Pic();
           const P = (p) => [O + SP * p[0], O + SP * p[1]];
-          RM.polygon(pic, sp.v.map(P), { fill: FILL, sw: 2.2 });
+          const pts = sp.v.map((p) => P(p).map(RM.fmt).join(',')).join(' ');
+          // fill, then the dots (visible inside), then a solid outline on top
+          pic.add(`<polygon points="${pts}" fill="${FILL}" stroke="none"/>`);
           for (let x = 0; x <= N; x++) for (let y = 0; y <= N; y++) RM.circle(pic, O + SP * x, O + SP * y, 1.45, { fill: '#8f97a3', sw: 0 });
+          pic.add(`<polygon points="${pts}" fill="none" stroke="${RM.INK}" stroke-width="2.2" stroke-linejoin="round"/>`);
           return pic.svg();
         },
         rules,

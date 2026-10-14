@@ -120,23 +120,32 @@
     return preds;
   }
 
-  /* simple per-panel attributes a solver might count */
+  /* global features a solver might count on a wave (plateaus count once), and the simple rules he could apply to
+   * them. Rules on single guides are covered by the pointwise hypotheses above. */
+  const runs = (v) => v.filter((x, i) => i === 0 || x !== v[i - 1]);
+  const ext = (sgn) => (v) => {
+    const r = runs(v);
+    return r.filter((x, i) => i > 0 && i < r.length - 1 && sgn * (x - r[i - 1]) > 0 && sgn * (x - r[i + 1]) > 0).length;
+  };
   const ATTR = [
-    (v) => v.filter((x, i) => i > 0 && i < N - 1 && x > v[i - 1] && x > v[i + 1]).length,
-    (v) => v.filter((x, i) => i > 0 && i < N - 1 && x < v[i - 1] && x < v[i + 1]).length,
-    (v) => v.filter((x) => x === 0).length,
-    (v) => v.filter((x) => x > 0).length,
-    (v) => v.filter((x) => x < 0).length,
-    (v) => Math.max(...v),
-    (v) => Math.min(...v),
-    (v) => v[4],
-    (v) => v[0],
-    (v) => v[N - 1],
+    ext(1), // crests
+    ext(-1), // troughs
     (v) => {
       const nz = v.filter((x) => x !== 0);
-      return nz.filter((x, i) => i && x * nz[i - 1] < 0).length;
+      return nz.filter((x, i) => i && x * nz[i - 1] < 0).length; // axis crossings
     },
+    (v) => Math.max(...v),
+    (v) => Math.min(...v),
   ];
+  const COUNT_RULES = ['row sum', 'row-constant', 'column-constant', 'copy-first', 'copy-second', 'row-latin', 'column-latin', 'row progression'];
+  const LEVEL_RULES = ['row-constant', 'column-constant'];
+  function attrConflict(W, ans) {
+    return ATTR.some((f, i) => {
+      const want = f(ans);
+      const ok = i < 3 ? COUNT_RULES : LEVEL_RULES;
+      return RM.preds.numeric(RM.grid3((r, c) => (r === 2 && c === 2 ? undefined : f(W[r][c])))).some((p) => ok.includes(p[0]) && p[1] !== want);
+    });
+  }
 
   function pathD(v) {
     const ys = v.map(Y);
@@ -200,7 +209,7 @@
       const preds = predictions(W);
       RM.need(preds.size === 1 && preds.has(K(ans)));
       // 2. no shortcut through simple counts (peaks, zeros, extremes…)
-      ATTR.forEach((f) => RM.needNoConflict(RM.grid3((r, c) => f(W[r][c])), f(ans), 'numeric'));
+      RM.need(!attrConflict(W, ans));
 
       // ---------------------------------------------------------- distractors
       const slipOp = OPS[op.slip];
@@ -374,9 +383,14 @@
         },
         {
           k: 'Superposition',
-          t: `In every row the third wave is ${ruleText} — the way real waves interfere. Where the dots pull in opposite directions they cancel out (${ex(
-            cancel
-          )}); where they pull the same way they reinforce (${ex(reinf)}).`,
+          t:
+            opName === 'sum'
+              ? `In every row the third wave is ${ruleText} — the way real waves interfere. Where the dots pull in opposite directions they cancel out (${ex(
+                  cancel
+                )}); where they pull the same way they reinforce (${ex(reinf)}).`
+              : `In every row the third wave is ${ruleText}. Where the two dots pull the same way they (partly) cancel out (${ex(
+                  cancel
+                )}); where they pull in opposite directions the result grows (${ex(reinf)}).`,
         },
         {
           k: 'Not a look-alike rule',
@@ -404,7 +418,7 @@
         render,
         key,
         rules,
-        hint: 'Two waves meet: compare the heights on each vertical guide line.',
+        hint: 'Two waves meet in every row: what happens where a crest meets a trough?',
         difficulty: 7,
       };
     },

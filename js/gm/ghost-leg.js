@@ -12,8 +12,8 @@
   'use strict';
   const RM = window.RM;
 
-  const SHP = ['circle', 'square', 'triangle', 'diamond', 'star5', 'cross', 'heart', 'crescent'];
-  const SNAME = { circle: 'circle', square: 'square', triangle: 'triangle', diamond: 'diamond', star5: 'star', cross: 'cross', heart: 'heart', crescent: 'crescent' };
+  const SHP = ['circle', 'square', 'triangle', 'diamond', 'star5', 'cross', 'heart', 'hourglass'];
+  const SNAME = { circle: 'circle', square: 'square', triangle: 'triangle', diamond: 'diamond', star5: 'star', cross: 'cross', heart: 'heart', hourglass: 'hourglass' };
   const FNAME = { black: 'black', white: 'white', gray: 'grey' };
   const ORDN = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
   const LV = 9; // rung levels
@@ -143,8 +143,19 @@
       RM.need(fits.every((h) => same(h.f(2), ans)));
       // decoy: a symbol that keeps its place in rows 1 and 2 must keep it in row 3 too
       for (let p = 0; p < n; p++) if (starts[0][p] === ends[0][p] && starts[1][p] === ends[1][p]) RM.need(starts[2][p] === ans[p]);
-      // decoy: a symbol that ends in the same place in rows 1 and 2 (whatever its start) should not be a trap
-      // (only a hint, so only rejected when it also holds for a whole column-3 pattern — covered by ends[0] ≠ ends[1])
+      /* one-symbol shortcuts: whenever rows 1–2 agree on one of these, row 3 must agree too (or the reading is void)
+       *  - a symbol moves by the same number of places in rows 1 and 2;  - a symbol arrives at the same place in
+       *  rows 1 and 2;  - the symbol arriving at place q came from the same start place in rows 1 and 2. */
+      const at = (o, s) => o.indexOf(s);
+      for (let s = 0; s < n; s++) {
+        const d0 = at(ends[0], s) - at(starts[0], s);
+        if (d0 === at(ends[1], s) - at(starts[1], s)) {
+          const q = at(starts[2], s) + d0;
+          if (q >= 0 && q < n) RM.need(ans[q] === s);
+        }
+        if (at(ends[0], s) === at(ends[1], s)) RM.need(at(ans, s) === at(ends[0], s));
+      }
+      for (let q = 0; q < n; q++) if (m1[q] === at(starts[1], ends[1][q])) RM.need(ans[q] === starts[2][m1[q]]);
 
       /* ---------------------------------------------------------- wording helpers */
       const S3 = starts[2];

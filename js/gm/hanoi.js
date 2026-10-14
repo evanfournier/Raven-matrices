@@ -126,6 +126,11 @@
         const gt = RM.grid3((r, c) => (r === 2 && c === 2 ? undefined : top(all[r * 3 + c], p)));
         RM.need(RM.preds.categorical(gt).every((q) => !SALIENT.test(q[0]) || q[1] === top(answer.st, p)));
       }
+      /* …nor on the peg of any single disc (e.g. a disc that never moved in 8 panels must not move in the 9th) */
+      for (let d = 0; d < n; d++) {
+        const gd = RM.grid3((r, c) => (r === 2 && c === 2 ? undefined : pegOf(all[r * 3 + c], d)));
+        RM.need(RM.preds.categorical(gd).every((q) => !SALIENT.test(q[0]) || q[1] === pegOf(answer.st, d)));
+      }
 
       /* ---- appearance: one fill per disc, widths clearly different */
       const fills = rng.shuffle(n === 5 ? ['black', 'white', 'gray', 'hatch', 'dots'] : ['black', 'white', 'gray', 'hatch', 'dots', 'checker']);

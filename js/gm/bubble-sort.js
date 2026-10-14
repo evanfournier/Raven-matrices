@@ -6,7 +6,8 @@
  * of neighbours, the pairing alternating every step) — sorting towards "shortest on the left" or "tallest on the left".
  * Uniqueness is checked against every method above, their mirror images and order directions, "stable" selection
  * (shift instead of swap), insertion from an empty prefix, fixed-phase odd–even, single-inversion swaps, 2 or 3 steps
- * per column, step counts continuing from row to row, and "column 3 is fully sorted". */
+ * per column, step counts continuing from row to row, double-ended selection, "each row repeats its own shuffle" and
+ * "column 3 is fully sorted"; per-slot heights and per-tower slots must not follow any simpler Raven rule. */
 (function () {
   'use strict';
   const RM = window.RM;
@@ -122,6 +123,9 @@
     oeC1: (a, asc) => oe(a, asc, 1),
     invL: (a, asc) => invL(a, asc),
     invR: (a, asc) => invR(a, asc),
+    // double-ended selection: the two ends are filled alternately
+    selAF: (a, asc, t) => (t % 2 ? selB(a, asc, (t - 1) / 2, false) : selF(a, asc, t / 2, false)),
+    selAB: (a, asc, t) => (t % 2 ? selF(a, asc, (t - 1) / 2, false) : selB(a, asc, t / 2, false)),
   };
   const ALG_IDS = Object.keys(ALGS);
   const PATTERNS = [
@@ -189,6 +193,11 @@
         const ph = alg === 'oe0' ? t % 2 : alg === 'oe1' ? (t + 1) % 2 : alg === 'oeC0' ? 0 : 1;
         return `comparing the neighbour pairs ${ph ? '2–3 and 4–5' : '1–2, 3–4 and 5–6'}${dir}`;
       }
+      case 'selAF':
+      case 'selAB':
+        return (alg === 'selAF') === (t % 2 === 0)
+          ? `a selection swap putting the ${fs} remaining tower into slot ${Math.floor(t / 2) + 1}${dir}`
+          : `a selection swap putting the ${lt} remaining tower into slot ${N - Math.floor(t / 2)}${dir}`;
       case 'invL':
         return `swapping only the leftmost pair of neighbours that is out of order${dir}`;
       case 'invR':
@@ -246,12 +255,37 @@
       const pr = run(h.alg, h.asc, rows[2][1], h.pat[1] - h.pat[0], off + h.pat[0]);
       preds.set(K(pr), (preds.get(K(pr)) || 0) + 1);
     }
+    // "each row repeats its own shuffle": the slot rearrangement column 1 → 2 is applied again for column 2 → 3
+    const reshuffle = (r) => {
+      const [x, y] = rows[r];
+      return y.map((v) => y[x.indexOf(v)]);
+    };
+    if ([0, 1].every((r) => K(reshuffle(r)) === K(rows[r][2]))) {
+      const pr = K(reshuffle(2));
+      preds.set(pr, (preds.get(pr) || 0) + 1);
+    }
     // shortcut: "column 3 is the fully sorted line"
     [true, false].forEach((asc) => {
       const srt = (a) => (asc ? sortedAsc(a) : sortedAsc(a).reverse());
       if ([0, 1].every((r) => K(srt(rows[r][0])) === K(rows[r][2]))) preds.set(K(srt(rows[2][0])), 1);
     });
     return preds;
+  }
+
+  /* No simple Raven rule on a single slot (its height) or a single tower (its slot) may predict something else
+   * (constant, copies, Latin square / distribution of three, progression, arithmetic between neighbouring panels).
+   * Only the "row total" / "column total" readings are skipped: every panel holds the same six towers, so a slot's
+   * three heights adding up to the same total in two rows is no plausible rule here. */
+  const SKIP_PRED = { 'row total': 1, 'column total': 1 };
+  const fits = (g, want) => RM.preds.numeric(g).every((p) => SKIP_PRED[p[0]] || p[1] === want);
+  function noShortcut(rows) {
+    const A = rows[2][2];
+    for (let i = 0; i < N; i++) {
+      if (!fits(RM.grid3((r, c) => rows[r][c][i]), A[i])) return false;
+      const h = i + 1;
+      if (!fits(RM.grid3((r, c) => rows[r][c].indexOf(h)), A.indexOf(h))) return false;
+    }
+    return true;
   }
 
   function generate(rng, variant) {
@@ -261,7 +295,7 @@
     const step = (a, t) => ALGS[alg](a, asc, t);
 
     let rows = null;
-    for (let tries = 0; tries < 40 && !rows; tries++) {
+    for (let tries = 0; tries < 400 && !rows; tries++) {
       const cand = [];
       const seen = new Set();
       for (let r = 0; r < 3; r++) {
@@ -280,6 +314,7 @@
         cand.push(row);
       }
       if (cand.length < 3) continue;
+      if (!noShortcut(cand)) continue;
       const preds = predictions(cand);
       if (preds.size !== 1 || !preds.has(K(cand[2][2]))) continue;
       rows = cand;
@@ -288,13 +323,6 @@
     const S = rows[2][0];
     const C2 = rows[2][1];
     const A = rows[2][2];
-
-    // No simple Raven rule on a single slot (its height) or a single tower (its slot) may predict something else.
-    for (let i = 0; i < N; i++) {
-      RM.needNoConflict(RM.grid3((r, c) => rows[r][c][i]), A[i], 'numeric');
-      const h = i + 1;
-      RM.needNoConflict(RM.grid3((r, c) => rows[r][c].indexOf(h)), A.indexOf(h), 'numeric');
-    }
 
     /* ------------------------------------------------ distractors */
     const cands = [];
@@ -306,6 +334,7 @@
         [1, 0].forEach((t) => {
           if (a2 === alg && o2 === asc && t === 1) return;
           const x = ALGS[a2](C2, o2, t);
+          if (K(x) === K(C2)) return; // an idle step is just "panel (3,2) itself", listed below
           const close = o2 === asc && POOLS[0].indexOf(a2) >= 0;
           add(x, close ? 0 : 2, `this is panel (3,2) after ${stepName(a2, o2, t)} — but the second step of this method is ${ansName}.`);
         })
@@ -403,8 +432,8 @@
       selB: `between two columns exactly two towers trade places: in column 2 the ${lastV} has come to slot 6, in column 3 the ${second} has come to slot 5; every other tower stays where it was.`,
       insL: `only the left of each row changes: in column 2 the first two towers are in order, in column 3 the first three; the towers in slots 4–6 never move, and the towers that make room shift one slot right.`,
       insR: `only the right of each row changes: in column 2 the last two towers are in order, in column 3 the last three; the towers in slots 1–3 never move, and the towers that make room shift one slot left.`,
-      oe0: `no tower ever moves more than one slot per column, and swaps happen only inside the pairs 1–2, 3–4, 5–6 in column 2 and inside the pairs 2–3, 4–5 in column 3 — several pairs at once.`,
-      oe1: `no tower ever moves more than one slot per column, and swaps happen only inside the pairs 2–3, 4–5 in column 2 and inside the pairs 1–2, 3–4, 5–6 in column 3 — several pairs at once.`,
+      oe0: `no tower ever moves more than one slot per column, and swaps happen only inside the pairs 1–2, 3–4, 5–6 in column 2 and only inside the pairs 2–3, 4–5 in column 3 (often in several pairs at once).`,
+      oe1: `no tower ever moves more than one slot per column, and swaps happen only inside the pairs 2–3, 4–5 in column 2 and only inside the pairs 1–2, 3–4, 5–6 in column 3 (often in several pairs at once).`,
     };
     // trace of step 2 (t = 1) from panel (3,2)
     function trace(a0) {

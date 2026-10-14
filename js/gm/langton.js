@@ -30,18 +30,19 @@
     const h0 = st.h;
     let c;
     let i1;
+    const b = H.back ? 2 : 0; // "the triangle points backwards" reading: the ant walks tail first
     if (H.order === 'TM') {
       c = g[i0];
       st.h = H.abs ? H.t[c] : (h0 + H.t[c]) & 3;
       if (H.flip === 'L') g[i0] = (c + H.cyc + nc) % nc;
-      st.x += DX[st.h];
-      st.y += DY[st.h];
+      st.x += DX[(st.h + b) & 3];
+      st.y += DY[(st.h + b) & 3];
       if (!inside(st.x, st.y)) return false;
       i1 = st.y * N + st.x;
       if (H.flip === 'E') g[i1] = (g[i1] + H.cyc + nc) % nc;
     } else {
-      st.x += DX[h0];
-      st.y += DY[h0];
+      st.x += DX[(h0 + b) & 3];
+      st.y += DY[(h0 + b) & 3];
       if (!inside(st.x, st.y)) return false;
       i1 = st.y * N + st.x;
       c = g[i1];
@@ -75,12 +76,19 @@
       for (const t of tables)
         for (const [flip, cyc] of flips)
           for (const order of ['TM', 'MT'])
-            for (let k = 1; k <= 4; k++) {
-              const H = { abs, t, flip, cyc, order, k };
-              H.seq = rep(H, k);
-              out.push(H);
-            }
+            for (const back of [false, true]) if (!(abs && back)) out.push({ abs, t, flip, cyc, order, back });
     return (HYP[nc] = out);
+  }
+  /* step counts 1..KMAX after which hypothesis H turns state a into state b */
+  const KMAX = 4;
+  function matchKs(a, b, H, nc) {
+    const st = { g: a.g.slice(), x: a.x, y: a.y, h: a.h };
+    const ks = [];
+    for (let k = 1; k <= KMAX; k++) {
+      if (!stepH(st, H, nc)) break;
+      if (same(st, b)) ks.push(k);
+    }
+    return ks;
   }
 
   RM.register({
@@ -138,18 +146,24 @@
 
       /* ---------------------------------------------------------------- uniqueness */
       const trans = [[P[0][0], P[0][1]], [P[0][1], P[0][2]], [P[1][0], P[1][1]], [P[1][1], P[1][2]], [P[2][0], P[2][1]]];
+      /* a rule survives when every visible transition fits it for SOME step count; the hidden transition may then
+       * take the step count of row 3 (rows differ), of column 2→3 (columns differ) or the common one (constant). */
       const preds = new Set();
       let intended = false;
       for (const H of hypotheses(nc)) {
-        let ok = true;
-        for (let i = 0; i < trans.length && ok; i++) {
-          const r = run(trans[i][0], H.seq, nc);
-          ok = !!r && same(r, trans[i][1]);
+        const okK = [];
+        for (let i = 0; i < trans.length; i++) {
+          const ks = matchKs(trans[i][0], trans[i][1], H, nc);
+          if (!ks.length) break;
+          okK.push(ks);
         }
-        if (!ok) continue;
-        const p = run(S, H.seq, nc);
-        preds.add(p ? skey(p) : 'off');
-        if (!H.abs && H.flip === 'L' && H.cyc === 1 && H.order === 'TM' && H.k === k && RM.sameArr(H.t, T)) intended = true;
+        if (okK.length < trans.length) continue;
+        const kSet = new Set(okK[4].concat(okK[1].filter((q) => okK[3].includes(q))));
+        for (const kk of kSet) {
+          const p = run(S, rep(H, kk), nc);
+          preds.add(p ? skey(p) : 'off');
+        }
+        if (!H.abs && !H.back && H.flip === 'L' && H.cyc === 1 && H.order === 'TM' && RM.sameArr(H.t, T) && okK.every((q) => q.includes(k))) intended = true;
         if (preds.size > 1) break;
       }
       RM.need(intended && preds.size === 1 && preds.has(ansKey));
@@ -295,9 +309,9 @@
           const px = -dy;
           const py = dx;
           const pts = [
-            [cx + 5.2 * dx, cy + 5.2 * dy],
-            [cx - 4.2 * dx + 4.4 * px, cy - 4.2 * dy + 4.4 * py],
-            [cx - 4.2 * dx - 4.4 * px, cy - 4.2 * dy - 4.4 * py],
+            [cx + 5.6 * dx, cy + 5.6 * dy],
+            [cx - 4.4 * dx + 4 * px, cy - 4.4 * dy + 4 * py],
+            [cx - 4.4 * dx - 4 * px, cy - 4.4 * dy - 4 * py],
           ];
           const dark = sp.g[sp.y * N + sp.x] === nc - 1;
           RM.polygon(pic, pts, { fill: dark ? 'white' : 'black', sw: 1, stroke: dark ? '#ffffff' : RM.INK });
@@ -306,7 +320,7 @@
         rules: [
           {
             k: 'Board',
-            t: 'each panel is a 6×6 board (columns A–F from left to right, rows 1–6 from top to bottom). The triangle is an <b>ant</b> pointing the way it faces. Each row follows one ant: every panel shows the board a fixed number of steps after the previous panel.',
+            t: 'each panel is a 6×6 board (columns A–F from left to right, rows 1–6 from top to bottom). The triangle is an <b>ant</b> pointing the way it faces (it is drawn white when it stands on a black cell, so that it stays visible). Each row follows one ant: every panel shows the board a fixed number of steps after the previous panel.',
           },
           { k: 'One step', t: `the ant looks at the colour of its own cell: ${turnRule}. After a step it faces the way it has just moved.` },
           {
