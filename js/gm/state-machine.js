@@ -190,7 +190,7 @@
       RM.circle(pic, x, y, R, { fill: black ? 'black' : 'white', sw: 2 });
       if (spec.cnt)
         pipLayout(spec.cnt[i]).forEach(([px, py]) =>
-          RM.circle(pic, x + px, y + py, 1.9, { fill: black ? 'white' : 'black', sw: 0 })
+          RM.circle(pic, x + px, y + py, 2.5, { fill: black ? 'white' : 'black', sw: 0 })
         );
     }
   }
