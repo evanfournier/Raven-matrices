@@ -21,8 +21,8 @@
   const SU = [-Math.sin(EL) * Math.cos(AZ), -Math.sin(EL) * Math.sin(AZ), Math.cos(EL)];
   const proj = (p) => [p[0] * SR[0] + p[1] * SR[1], -(p[0] * SU[0] + p[1] * SU[1] + p[2] * SU[2])];
   const FACE = [
-    { o: [0, 0, 1], u: [1, 0, 0], v: [0, 1, 0], a: V[2], fill: '#efefef' }, // top
-    { o: [1, 0, 0], u: [0, 1, 0], v: [0, 0, 1], a: V[0], fill: '#bdbdbd' }, // +x, front-left
+    { o: [0, 0, 1], u: [1, 0, 0], v: [0, 1, 0], a: V[2], fill: '#f7f7f7' }, // top
+    { o: [1, 0, 0], u: [0, 1, 0], v: [0, 0, 1], a: V[0], fill: '#b4b4b4' }, // +x, front-left
     { o: [0, 1, 0], u: [1, 0, 0], v: [0, 0, 1], a: V[1], fill: '#6f6f6f' }, // +y, front-right
   ];
   const FULL = V[0] + V[1] + V[2];
@@ -176,7 +176,7 @@
   function describe(cells, a, m) {
     const sig = (c) => NB.filter((d) => has(cells, add(c, d)));
     const sk = (c) => sig(c).map((d) => d.join()).sort().join('|');
-    if (cells.filter((c) => sk(c) === sk(a)).length === 1) return `the cube whose other neighbours are on ${sides(sig(a).map((d) => ap(m, d)))}`;
+    if (cells.filter((c) => sk(c) === sk(a)).length === 1) return `the cube whose ${sig(a).length === 1 ? 'only other neighbour is' : 'other neighbours are'} on ${sides(sig(a).map((d) => ap(m, d)))}`;
     // an end cube: name it by the length of the straight row it ends
     const runLen = (c) => {
       const s = sig(c);
@@ -198,8 +198,10 @@
         while (has(cells, add(c, E[k].map((x) => x * L)))) L++;
         runs.push({ k, L });
       }
-    runs.sort((a, b) => b.L - a.L);
-    return runs[0].L >= 3 && (runs.length < 2 || runs[1].L < runs[0].L) ? runs[0] : null;
+    // the longest row that is the only one of its length along its direction
+    const ok = runs.filter((r) => r.L >= 2 && runs.filter((q) => q.L === r.L && q.k === r.k).length === 1);
+    ok.sort((a, b) => b.L - a.L);
+    return ok.length ? ok[0] : null;
   }
 
   /* ---------------------------------------------------------------- one draw */
@@ -255,6 +257,8 @@
       break;
     }
     if (!mod) return null;
+    // the correction must be able to name the cube that carries the extra (moved) cube
+    if (!describe(mod.base, mod.a, I3)) return null;
     const D = tf(R, C);
     const An = norm(X), Bn = norm(B), Cn = norm(C), Dn = norm(D);
     if (![An, Bn, Cn, Dn].every(legible)) return null;
@@ -314,35 +318,61 @@
       });
     }
 
-    // pick 7: by category quotas first, most tempting first
-    const quota = rng.pick([{ place: 3, rot: 2, mir: 2 }, { place: 3, rot: 2, mir: 2 }, { place: 2, rot: 3, mir: 2 }, { place: 3, rot: 1, mir: 3 }]);
+    // candidate pl: most tempting first, deduplicated, legible, at most 10 per kind
     cands.sort((p, q) => q.pri - p.pri);
     const seen = new Set([ansKey]);
-    const chosen = [];
-    const cnt = { place: 0, rot: 0, mir: 0 };
-    const tryTake = (c) => {
-      const S = norm(c.cells), k = ckey(S);
-      if (seen.has(k)) return;
-      // a wrong option must never be both "the top-right object plus a cube" and "a turn of the bottom-left object"
-      if (rotKeys.has(k) && contains(S, baseN)) return;
-      if (!legible(S)) {
-        seen.add(k);
-        return;
-      }
-      seen.add(k);
-      chosen.push({ spec: { c: S }, flaws: [c.flaw], cat: c.cat });
-      cnt[c.cat]++;
-    };
-    for (const cat of ['place', 'rot', 'mir'])
-      for (const c of cands) {
-        if (cnt[cat] >= quota[cat]) break;
-        if (c.cat === cat) tryTake(c);
-      }
+    const pl = [];
+    const per = { place: 0, rot: 0, mir: 0 };
     for (const c of cands) {
-      if (chosen.length >= 7) break;
-      tryTake(c);
+      if (per[c.cat] >= 10) continue;
+      const S = norm(c.cells), k = ckey(S);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      // a wrong option must never be both "the top-right object plus a cube" and "a turn of the bottom-left object"
+      if (rotKeys.has(k) && contains(S, baseN)) continue;
+      if (!legible(S)) continue;
+      pl.push({ S, cat: c.cat, flaw: c.flaw });
+      per[c.cat]++;
     }
-    if (chosen.length < 7 || cnt.place < 2 || cnt.rot < 1 || cnt.mir < 1) return null;
+    const ids = (cat) => pl.map((p, i) => i).filter((i) => pl[i].cat === cat);
+    const quota = rng.pick([{ place: 3, rot: 2, mir: 2 }, { place: 3, rot: 2, mir: 2 }, { place: 2, rot: 3, mir: 2 }, { place: 3, rot: 1, mir: 3 }]);
+    let sel = [];
+    for (const cat of ['place', 'rot', 'mir']) sel = sel.concat(ids(cat).slice(0, quota[cat]));
+    for (let i = 0; i < pl.length && sel.length < 7; i++) if (!sel.includes(i)) sel.push(i);
+    if (sel.length < 7) return null;
+    const cnt = (cat) => sel.filter((i) => pl[i].cat === cat).length;
+    if (cnt('place') < 2 || cnt('rot') < 1 || cnt('mir') < 1) return null;
+    // anti-guessing: the answer shares a lot with every kind of distractor, so "the option that looks most like all
+    // the others" (summed cube overlap, same orientation) must not single it out — swap distractors until some
+    // distractor is at least as central as the answer
+    const all = [Dn].concat(pl.map((p) => p.S));
+    const memo = new Map();
+    const ov = (i, j) => {
+      const key = i < j ? i * 128 + j : j * 128 + i;
+      let v = memo.get(key);
+      if (v === undefined) memo.set(key, (v = overlap(all[i], all[j])));
+      return v;
+    };
+    const margin = (s) => {
+      const q = [0].concat(s.map((i) => i + 1));
+      const sc = q.map((a) => q.reduce((t, b) => t + (a === b ? 0 : ov(a, b)), 0));
+      return Math.max(...sc.slice(1)) - sc[0];
+    };
+    let m = margin(sel);
+    for (let it = 0; it < 120 && m < 1; it++) {
+      const pos = rng.int(0, 6);
+      const alts = ids(pl[sel[pos]].cat).filter((i) => !sel.includes(i));
+      if (!alts.length) continue;
+      const s2 = sel.slice();
+      s2[pos] = rng.pick(alts);
+      const m2 = margin(s2);
+      if (m2 >= m) {
+        sel = s2;
+        m = m2;
+      }
+    }
+    if (m < 0) return null;
+    const chosen = sel.map((i) => ({ spec: { c: pl[i].S }, flaws: [pl[i].flaw], cat: pl[i].cat }));
 
     return { X, B, C, D, An, Bn, Cn, Dn, R, mod, chosen, moved };
   }
@@ -395,7 +425,7 @@
       const d = mod.d, Rd = ap(R, d);
       const row = longestRow(X);
       const rowTxt = row
-        ? ` Check it on the straight row of ${RM.word(row.L)} cubes: it runs ${RUNS[row.k]} in the top-left panel and ${RUNS[[0, 1, 2].find((k) => ap(R, E[row.k])[k] !== 0)]} in the top-right one.`
+        ? ` Check it on the straight row of ${RM.word(row.L)} cubes that runs ${RUNS[row.k]} in the top-left panel: it runs ${RUNS[[0, 1, 2].find((k) => ap(R, E[row.k])[k] !== 0)]} in the top-right one.`
         : '';
       const anchorA = describe(mod.base, mod.a, I3);
       const anchorB = describe(mod.base, mod.a, R);

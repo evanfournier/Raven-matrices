@@ -78,6 +78,9 @@
     atom('chainRow' + ri, pairsOf(ROWS).map(([i, j]) => ({ cells: [i, j], f: (G) => hv(G, i, 1) === hv(G, j, 0) })));
     atom('chainCol' + ri, pairsOf(COLS).map(([i, j]) => ({ cells: [i, j], f: (G) => hv(G, i, 1) === hv(G, j, 0) })));
     if (ri > 1) return;
+    // the chain closes into a ring (last half of a line = first half of that line)
+    atom('ringRow' + ri, ROWS.map((L) => ({ cells: [L[0], L[2]], f: (G) => hv(G, L[2], 1) === hv(G, L[0], 0) })));
+    atom('ringCol' + ri, COLS.map((L) => ({ cells: [L[0], L[2]], f: (G) => hv(G, L[2], 1) === hv(G, L[0], 0) })));
     [0, 1].forEach((k) => {
       const hs = (G, L) => hv(G, L[0], k) + hv(G, L[1], k) + hv(G, L[2], k);
       const modc = (L) => ({ cells: L, f: (G) => (hv(G, L[0], k) + hv(G, L[1], k)) % 7 === hv(G, L[2], k) });
@@ -211,32 +214,43 @@
     generate(rng, variant) {
       const v = variant | 0;
       const phase = v === 0 ? HOR : rng.int(0, 1);
-      let rows;
-      if (v === 0) rows = genChain(rng);
-      else if (v === 1) {
-        const t = genChain(rng);
-        rows = [0, 1, 2].map((r) => [0, 1, 2].map((c) => t[c][r]));
-      } else if (v === 2) rows = genMod(rng);
-      else rows = genHalfMagic(rng);
-      const G = rows.flat().map((d, i) => ({ a: d.a, b: d.b, o: (((i / 3) | 0) + (i % 3)) % 2 === 0 ? phase : 1 - phase }));
+      const g3 = (fn) => RM.grid3((r, c) => fn(G[r * 3 + c]));
+      let G = null;
+      // cheap local retries: draw a grid, then reject it if any alternative reading gets in the way
+      for (let t = 0; !G; t++) {
+        RM.need(t < 400);
+        let rows;
+        if (v === 0) rows = genChain(rng);
+        else if (v === 1) {
+          const tt = genChain(rng);
+          rows = [0, 1, 2].map((r) => [0, 1, 2].map((c) => tt[c][r]));
+        } else if (v === 2) rows = genMod(rng);
+        else rows = genHalfMagic(rng);
+        const H = rows.flat().map((d, i) => ({ a: d.a, b: d.b, o: (((i / 3) | 0) + (i % 3)) % 2 === 0 ? phase : 1 - phase }));
+        // 1. every hypothesis that fits the visible panels must accept the answer
+        if (ATOMS.some((at) => visOK(at, H) && !fullOK(at, H))) continue;
+        G = H;
+        try {
+          // 2. classic Raven rules on first halves, second halves and totals (two readings of vertical dominoes)
+          for (let ri = 0; ri < 2; ri++)
+            for (let k = 0; k < 2; k++) {
+              const gr = g3((d) => READ[ri](d)[k]);
+              const w = READ[ri](G[8])[k];
+              RM.needNoConflict(gr, w, 'numeric');
+              RM.needNoConflict(gr, w, 'numeric', 7);
+            }
+          RM.needNoConflict(g3(tot), tot(G[8]), 'numeric');
+          if (v === 2) {
+            RM.needUnique(g3((d) => d.a), G[8].a, 'numeric', 7);
+            RM.needUnique(g3((d) => d.b), G[8].b, 'numeric', 7);
+          }
+        } catch (e) {
+          if (e !== RM.RETRY) throw e;
+          G = null;
+        }
+      }
       const ans = G[8];
 
-      // 1. every hypothesis that fits the visible panels must accept the answer
-      for (const at of ATOMS) if (visOK(at, G)) RM.need(fullOK(at, G));
-      // 2. classic Raven rules on first halves, second halves and totals (two readings of vertical dominoes)
-      const g3 = (fn) => RM.grid3((r, c) => fn(G[r * 3 + c]));
-      for (let ri = 0; ri < 2; ri++)
-        for (let k = 0; k < 2; k++) {
-          const gr = g3((d) => READ[ri](d)[k]);
-          const w = READ[ri](ans)[k];
-          RM.needNoConflict(gr, w, 'numeric');
-          RM.needNoConflict(gr, w, 'numeric', 7);
-        }
-      RM.needNoConflict(g3(tot), tot(ans), 'numeric');
-      if (v === 2) {
-        RM.needUnique(g3((d) => d.a), ans.a, 'numeric', 7);
-        RM.needUnique(g3((d) => d.b), ans.b, 'numeric', 7);
-      }
       // 3. the intended rules single out the answer among all 98 dominoes
       const intended = INTENDED[v].map((id) => BY[id]).concat([BY['orient' + phase]]);
       const fits = (s) => {
@@ -331,13 +345,13 @@
           orientRule,
           {
             k: 'Missing domino',
-            t: `First half: ${mod(A[0], A[1])} → <b>${ans.a}</b>. Second half: ${mod(B[0], B[1])} → <b>${ans.b}</b>. Check: ${tot(G[6])} + ${tot(G[7])} + ${T} = ${S}. Answer: <b>${word(ans.o)} domino ${dom(ans)}</b>.`,
+            t: `First half: ${mod(A[0], A[1]).replace(/\d+$/, '<b>$&</b>')}. Second half: ${mod(B[0], B[1]).replace(/\d+$/, '<b>$&</b>')}. Check: ${tot(G[6])} + ${tot(G[7])} + ${T} = ${S}. Answer: <b>${word(ans.o)} domino ${dom(ans)}</b>.`,
           },
         ];
         hint = 'Treat first halves and second halves separately — and remember a domino half never shows more than 6.';
         flawsOf = (s) => {
           const out = [];
-          if (swapped(s)) out.push(`its two halves are exchanged: the first half must be ${A[0]} + ${A[1]} → ${ans.a}`);
+          if (swapped(s)) out.push(`its two halves are exchanged: the first half must be ${mod(A[0], A[1])}`);
           else {
             if (s.a !== ans.a) out.push(`its first half should be ${mod(A[0], A[1])}, not ${s.a}`);
             if (s.b !== ans.b) out.push(`its second half should be ${mod(B[0], B[1])}, not ${s.b}`);
@@ -391,39 +405,48 @@
       }
 
       // ---------------------------------------------------------------- distractors
+      // two clusters: near-misses of the answer and near-misses of a tempting wrong domino (decoy), so that the
+      // answer is not simply the "average" of the options
       const a = ans.a;
       const b = ans.b;
-      const must = [[b, a, o], [a, b, no]];
-      const strong = mistakes.concat([[a, b + 1, o], [a, b - 1, o], [a + 1, b, o], [a - 1, b, o], [b, a, no]]);
-      const weak = [];
-      for (let x = 0; x < 7; x++) weak.push([x, T - x, o], [a, x, o], [x, b, o]);
-      const seen = new Set([keyOf(ans)]);
-      const mk = (arr) => {
+      const seen0 = keyOf(ans);
+      const ok = (x, y) => x >= 0 && x <= 6 && y >= 0 && y <= 6;
+      const pert = (x, y, z) => [[y, x, z], [x, y, 1 - z], [x, y + 1, z], [x, y - 1, z], [x + 1, y, z], [x - 1, y, z], [x + 1, y - 1, z], [x - 1, y + 1, z]];
+      const valid = (arr) => {
         const out = [];
+        const ks = new Set([seen0]);
         arr.forEach(([x, y, z]) => {
-          if (x < 0 || x > 6 || y < 0 || y > 6) return;
-          const s = { a: x, b: y, o: z };
-          const k = keyOf(s);
-          if (seen.has(k) || fits(s)) return;
-          seen.add(k);
-          out.push(s);
+          if (!ok(x, y)) return;
+          const sp = { a: x, b: y, o: z };
+          const k = keyOf(sp);
+          if (ks.has(k) || fits(sp)) return;
+          ks.add(k);
+          out.push(sp);
         });
         return out;
       };
-      const M = mk(must);
-      const St = mk(strong);
-      const W = mk(weak);
+      const decoys = rng.shuffle(valid(mistakes.concat([[a + 1, b - 1, o], [a - 1, b + 1, o]])));
       const score = (x, L) => L.reduce((n, y) => n + (y === x ? 0 : (x.a === y.a) + (x.b === y.b) + (tot(x) === tot(y)) + (x.o === y.o)), 0);
       let pick = null;
-      for (let t = 0; t < 30 && !pick; t++) {
-        const sel = M.slice();
-        const rest = rng.shuffle(St).concat(rng.shuffle(W));
-        for (const s of rest) {
-          if (sel.length >= 7) break;
-          if (s.o !== o && sel.filter((d) => d.o !== o).length >= 2) continue;
-          sel.push(s);
+      for (let di = 0; di < decoys.length * 4 && !pick; di++) {
+        const D = decoys[di % decoys.length];
+        const sel = [D];
+        const ks = new Set([seen0, keyOf(D)]);
+        const add = (sp) => {
+          const k = keyOf(sp);
+          if (ks.has(k) || sel.length >= 7) return;
+          if (sp.o !== o && sel.filter((d) => d.o !== o).length >= 2) return;
+          ks.add(k);
+          sel.push(sp);
+        };
+        valid([[b, a, o]]).forEach(add);
+        const PA = rng.shuffle(valid(pert(a, b, o)));
+        const PD = rng.shuffle(valid(pert(D.a, D.b, D.o)));
+        for (let i = 0; i < 8; i++) {
+          if (PD[i]) add(PD[i]);
+          if (PA[i]) add(PA[i]);
         }
-        if (sel.length < 7) break;
+        if (sel.length < 7) continue;
         const cnt = (f) => sel.filter(f).length;
         if (cnt((d) => d.a === a) < 2 || cnt((d) => d.b === b) < 1 || cnt((d) => tot(d) === T) < 2) continue;
         const all = sel.concat([ans]);

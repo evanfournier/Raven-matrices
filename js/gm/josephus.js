@@ -203,7 +203,7 @@
         if (h.mode === 'places') why.push('also counts the empty places of beads already out (they must be skipped)');
         if (h.k !== k) why.push('removes every ' + ORD[h.k] + ' bead instead of every ' + ORD[k]);
         if (h.off !== off)
-          why.push(h.off ? 'starts the count on the bead after the marked one (the marked bead counts as 1)' : 'counts the marked bead as 1 (the count starts on the bead after it)');
+          why.push(h.off ? 'starts the count on the bead after the marked one (but the marked bead itself counts as 1)' : 'counts the marked bead as 1 (but the count starts on the bead after it)');
         const d = r3.preds[i].seq;
         add(d, 'This is what you get if one ' + why.join(' and ') + '.', tier(d), h.mode === 'places' && h.k === k && h.dir === dir && h.off === off);
       }
@@ -211,13 +211,39 @@
       add(r3.seq.slice(0, E3 - 1), 'Only ' + (E3 - 1) + ' beads are out: each panel shows ' + E2 + ' more beads out than the one to its left.', 2);
       const ms5 = simM(n3, k, off, 'std', E3 + 1);
       add(ms5.map((m) => RM.mod(r3.s + dir * m, n3)), (E3 + 1) + ' beads are out — one count too many (the right panel shows ' + E3 + ').', 2);
+      // (c) one count done wrong (one bead too early / too late, or an empty place counted), the later counts done right
+      const stepSlip = (j, mis) => {
+        const dead = new Array(n3).fill(false);
+        const out = [];
+        const nextAlive = (m) => {
+          for (let t = 0; t < n3; t++) if (!dead[(m + t) % n3]) return (m + t) % n3;
+          return -1;
+        };
+        let cur = off;
+        for (let s = 0; s < E3; s++) {
+          let c;
+          if (s === j && mis === 0) {
+            c = (cur + k - 1) % n3;
+            if (dead[c]) return null;
+          } else {
+            c = nextAlive(cur);
+            for (let t = 1; t < (s === j ? k + mis : k); t++) c = nextAlive(c + 1);
+          }
+          dead[c] = true;
+          out.push(c);
+          cur = c + 1;
+        }
+        return out.map((m) => RM.mod(r3.s + dir * m, n3));
+      };
       for (let j = E2; j < E3; j++)
-        for (const step of [-1, 1]) {
-          const x = RM.mod(r3.seq[j] + dir * step, n3);
-          if (ansSet.has(x)) continue;
-          const d = r3.seq.slice();
-          d[j] = x;
-          add(d, 'The count that removes No. ' + no(r3.seq[j]) + ' has stopped one bead too ' + (step < 0 ? 'early' : 'late') + '.', 1);
+        for (const mis of [-1, 1, 0]) {
+          const d = stepSlip(j, mis);
+          if (!d) continue;
+          const what =
+            mis === 0
+              ? 'also counted the empty place of a bead already out'
+              : 'stopped one bead too ' + (mis < 0 ? 'early (only ' + (k - 1) : 'late (' + (k + 1)) + ' beads counted)';
+          add(d, 'The ' + ORD[j + 1] + ' count ' + what + (j < E3 - 1 ? ', and the next count' + (E3 - j > 2 ? 's were' : ' was') + ' made from there' : '') + '.', 1);
         }
       for (const step of [-1, 1])
         add(r3.seq.map((x) => RM.mod(x + step, n3)), 'The right crosses, but every one of them is shifted one bead along the circle.', 3);
@@ -225,18 +251,27 @@
       const pool = Array.from(cands.values());
       RM.need(pool.length >= 7);
       const by = (p) => pool.filter((c) => c.pri === p);
-      let chosen = null;
-      for (let tries = 0; tries < 12 && !chosen; tries++) {
-        const t1 = rng.shuffle(by(1));
-        const t2 = rng.shuffle(by(2));
-        const t3 = rng.shuffle(by(3));
-        const must = pool.filter((c) => c.must);
-        const pick = must.concat(t1.filter((c) => !c.must).slice(0, 5 - must.length)).concat(t2.slice(0, 1), t1.filter((c) => !c.must).slice(5 - must.length), t3.filter((c) => !c.must), t2.slice(1)).slice(0, 7);
-        // anti-guessing: the answer must not be the unique "most central" option
-        const sets = [answer.dead].concat(pick.map((c) => c.dead));
-        const dist = (A, B) => A.filter((x) => !B.includes(x)).length + B.filter((x) => !A.includes(x)).length;
+      // anti-guessing: some distractor with as many crosses as the answer must be at least as "central" as the answer
+      const dist = (A, B) => A.filter((x) => !B.includes(x)).length + B.filter((x) => !A.includes(x)).length;
+      const central = (pick) => {
+        const sets = [answer.dead].concat(pick.map((c) => c.dead)).filter((A) => A.length === E3);
         const tot = sets.map((A) => sets.reduce((s, B) => s + dist(A, B), 0));
-        if (tot.slice(1).some((t) => t <= tot[0])) chosen = pick;
+        // …and every cross of the answer also appears in some distractor
+        return tot.slice(1).some((t) => t <= tot[0]) && answer.dead.every((x) => pick.some((c) => c.dead.includes(x)));
+      };
+      const must = pool.filter((c) => c.must);
+      let chosen = null;
+      for (let tries = 0; tries < 30 && !chosen; tries++) {
+        const t1 = rng.shuffle(by(1).filter((c) => !c.must));
+        const rest = rng.shuffle(by(2)).slice(0, 1).concat(rng.shuffle(by(3)));
+        if (!t1.length) break;
+        // a decoy centre D, then the first-tier candidates closest to D (ties: closest to the answer)
+        const D = t1[0];
+        const near = t1.slice(1).map((c) => ({ c, v: -2 * dist(c.dead, D.dead) - dist(c.dead, answer.dead) + rng.next() }));
+        near.sort((x, y) => y.v - x.v);
+        const nT1 = tries < 15 ? 6 : 5;
+        const pick = must.concat([D], near.map((x) => x.c)).slice(0, nT1).concat(rest, near.map((x) => x.c).slice(nT1)).slice(0, 7);
+        if (pick.length === 7 && central(pick)) chosen = pick;
       }
       RM.need(chosen);
       const options = [{ spec: answer, flaws: [] }].concat(

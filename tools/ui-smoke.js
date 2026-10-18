@@ -35,6 +35,8 @@ const { chromium } = require('playwright');
     // keyboard: next puzzle, answer correctly
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => location.hash === '#/p/58');
+    await page.waitForSelector('.opt:not(.good):not(.bad)');
+    await page.waitForTimeout(200);
     const ans58 = await page.evaluate(() => window.RM.puzzle(58).answerIndex);
     await page.keyboard.press(String(ans58 + 1));
     await page.keyboard.press('Enter');
