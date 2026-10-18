@@ -112,6 +112,7 @@
     {
       id: 'c1i2',
       diff: 7,
+      show: [[0, 1], [2, 3], [4]],
       f: (a, b) => a === 'C' || b === 'I',
       need: [
         (a, b) => a === 'E' && b !== 'I',
@@ -126,6 +127,7 @@
     {
       id: 'xor',
       diff: 6,
+      show: [[0]],
       f: (a, b) => isPeg(a) !== isPeg(b),
       need: [(a, b) => isPeg(a) && isPeg(b), (a, b) => a === 'I' && !isPeg(b), (a, b) => !isPeg(a) && b === 'I', (a, b) => (a === 'E' && !isPeg(b)) || (b === 'E' && !isPeg(a))],
       rule: 'Panel 3 superimposes the pegs of panels 1 and 2, but a hole holding a peg in <b>both</b> panels ends up <b>empty</b> (the two pegs cancel). Corners, edges and inner pegs are treated alike.',
@@ -133,6 +135,7 @@
     {
       id: 'c1c2',
       diff: 6,
+      show: [[0, 1], [2, 3], [4], [5]],
       f: (a, b) => a === 'C' || b === 'C',
       need: [(a, b) => a === 'E' && b !== 'C', (a, b) => a === 'I' && b !== 'C', (a, b) => a !== 'C' && b === 'E', (a, b) => a !== 'C' && b === 'I', (a, b) => a === 'C' && !isPeg(b), (a, b) => !isPeg(a) && b === 'C'],
       rule: 'Panel 3 keeps only the <b>corner pegs</b> of the bands of panels 1 and 2. Every edge peg and every inner peg disappears.',
@@ -140,6 +143,7 @@
     {
       id: 'esc',
       diff: 7,
+      show: [[0], [1], [2, 3]],
       f: (a, b) => (isPeg(a) && b === 'o') || (isPeg(b) && a === 'o'),
       forbid: (a, b) => (isPeg(a) && b === 'b') || (isPeg(b) && a === 'b'),
       need: [(a, b) => isPeg(a) && b === 'o', (a, b) => a === 'o' && isPeg(b), (a, b) => isPeg(a) && b === 'h', (a, b) => a === 'h' && isPeg(b)],
@@ -163,6 +167,8 @@
     { id: 'esc1', f: (a, b) => isPeg(a) && b === 'o', why: 'it keeps only the pegs of panel 1 lying outside the band of panel 2' },
     { id: 'in', f: (a, b) => (isPeg(a) && b !== 'o') || (isPeg(b) && a !== 'o'), why: 'it keeps the pegs caught inside the other panel’s band' },
   ];
+
+  const COLF = ALT.map((a) => a.f).concat(VARS.map((v) => v.f), RM.ALL_BOOL.map((b) => (a, c) => b(isPeg(a), isPeg(c))));
 
   /* Point-wise type of a hole: its role in panel 1, in panel 2 and in the superimposed picture (band stretched
    * around the pegs of both panels). Every rule a solver could read hole by hole is a function of this type. */
@@ -229,7 +235,8 @@
   function render(spec) {
     const pic = new RM.Pic();
     const set = new Set(spec.pegs);
-    pic.add(`<path d="${beltPath(spec.band)}" fill="#e9ecef" stroke="${RM.DARK}" stroke-width="2.4" stroke-linejoin="round"/>`);
+    const belt = beltPath(spec.band);
+    pic.add(`<path d="${belt}" fill="#e9ecef" stroke="none"/>`);
     let holes = '';
     let pegs = '';
     ALL.forEach((k) => {
@@ -238,7 +245,8 @@
       if (set.has(k)) pegs += `<circle cx="${x}" cy="${y}" r="3.2" fill="${RM.INK}"/>`;
       else holes += `<circle cx="${x}" cy="${y}" r="1.6" fill="#ffffff" stroke="#9aa1ab" stroke-width="0.9"/>`;
     });
-    pic.add(holes + pegs);
+    // holes, then the band line over them (a hole under the band must not cut it), then the pegs
+    pic.add(holes + `<path d="${belt}" fill="none" stroke="${RM.DARK}" stroke-width="2.4" stroke-linejoin="round"/>` + pegs);
     return pic.svg();
   }
   function canonBand(band) {
@@ -276,6 +284,8 @@
     const order = rng.shuffle(RM.range(pool.length));
     search: for (const i3 of order) {
       const r3 = pool[i3];
+      // row 3 itself must exercise every clause of the rule (no part of it may be skippable)
+      if (!V.show.every((grp) => grp.some((i) => r3.mask & (1 << i)))) continue;
       for (const i1 of order) {
         if (i1 === i3) continue;
         for (const i2 of order) {
@@ -291,7 +301,13 @@
           const all = [r1, r2, r3];
           const cnt = RM.grid3((r, c) => all[r][c].pegs.length);
           const cor = RM.grid3((r, c) => all[r][c].H.length);
-          if (!RM.unique(cnt, cnt[2][2], 'numeric', undefined, true) || !RM.unique(cor, cor[2][2], 'numeric', undefined, true)) continue;
+          const non = RM.grid3((r, c) => all[r][c].pegs.length - all[r][c].H.length);
+          if (!RM.unique(cnt, cnt[2][2], 'numeric', undefined, true) || !RM.unique(cor, cor[2][2], 'numeric', undefined, true) || !RM.unique(non, non[2][2], 'numeric', undefined, true)) continue;
+          // the same combination rules read DOWN the columns (row 3 = rows 1 and 2 combined) must not point elsewhere
+          if (COLF.some((f) => {
+            const comb = (c) => ALL.filter((k) => f(all[0][c].st[k], all[1][c].st[k]));
+            return RM.sameArr(comb(0), all[2][0].pegs) && RM.sameArr(comb(1), all[2][1].pegs) && !RM.sameArr(comb(2), all[2][2].pegs);
+          })) continue;
           rows = all;
           break search;
         }

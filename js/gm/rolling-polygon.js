@@ -1,15 +1,16 @@
 /* Rolling polygon (grandmaster): each row shows one regular polygon (square to heptagon) standing on a ground
  * marked with ticks one side-length apart. One corner carries a black dot and one edge is drawn thick. Between
- * panels the polygon ROLLS (tips over a bottom corner) a fixed number of edges: each roll moves it one tick along
- * and turns it by one corner, clockwise when rolling right. The solver counts the ticks in rows 1-2, then has to roll
- * the row-3 polygon in the head and say where the dot and the thick edge end up and where the polygon stands.
- * Variants: 0 = k (2-3) edges to the right each time; 1 = k edges to the left; 2 = two different roll counts for
- * the two steps (same in every row); 3 = rolls one way, then back the other way. */
+ * panels the polygon ROLLS (tips over a bottom corner) a whole number of edges: each roll moves it one tick along
+ * and turns it by one corner, clockwise when rolling right. The roll counts are the same in every row, so the solver
+ * counts the ticks in rows 1-2, then rolls the row-3 polygon in the head and says where the dot and the thick edge
+ * end up and where the polygon stands.
+ * Variants: 0 = two different roll counts to the right (e.g. 1 then 3); 1 = the same count (2-3) to the left both
+ * times; 2 = two different counts, either direction; 3 = rolls one way, then a different number back. */
 (function () {
   'use strict';
   const RM = window.RM;
   const md = RM.mod;
-  const GY = 66; // ground line
+  const GY = 70; // ground line
   const DEG = Math.PI / 180;
   const POLY = { 4: 'square', 5: 'pentagon', 6: 'hexagon', 7: 'heptagon' };
 
@@ -52,18 +53,18 @@
   const roll = (sp, d) => Object.assign({}, sp, { p: sp.p + d, ds: md(sp.ds + d, sp.n), ts: md(sp.ts + d, sp.n) });
   const sameState = (a, b) => a.p === b.p && a.ds === b.ds && a.ts === b.ts;
   const angTxt = (n, k) => {
-    const v = (k * 360) / n;
-    return (Number.isInteger(v) ? '' : '≈ ') + RM.fmt(Math.round(v * 10) / 10) + '°';
+    const one = 360 / n;
+    const r1 = (v) => RM.fmt(Math.round(v * 10) / 10) + '°';
+    return `${k} × ${r1(one)} ${Number.isInteger(one) ? '=' : '≈'} ${r1(k * one)}`;
   };
   const ticks = (k) => RM.plural(k, 'tick');
   const edges = (k) => RM.plural(k, 'edge');
 
   function render(sp) {
     const pic = new RM.Pic();
-    pic.add(`<rect x="4" y="${GY}" width="92" height="7" fill="${pic.paint('ldots')}"/>`);
     RM.line(pic, 4, GY, 96, GY, { sw: 2 });
     const i0 = Math.ceil((5 - sp.x0) / sp.s);
-    for (let i = i0; sp.x0 + i * sp.s <= 95; i++) RM.line(pic, sp.x0 + i * sp.s, GY, sp.x0 + i * sp.s, GY + 4.5, { sw: 1.5, color: RM.DARK });
+    for (let i = i0; sp.x0 + i * sp.s <= 95; i++) RM.line(pic, sp.x0 + i * sp.s, GY, sp.x0 + i * sp.s, GY + 7, { sw: 1.7 });
     const g = GEO[sp.n];
     const bx = sp.x0 + sp.p * sp.s;
     const v = g.pts.map((q) => [bx + q[0] * sp.s, GY + q[1] * sp.s]);
@@ -112,17 +113,21 @@
     difficulty: 7,
     generate(rng, variant) {
       let d1, d2;
-      if (variant === 0) d1 = d2 = rng.int(2, 3);
-      else if (variant === 1) d1 = d2 = -rng.int(1, 3);
-      else if (variant === 2) {
+      let diff = 7;
+      if (variant === 0) [d1, d2] = rng.pick([[1, 2], [1, 3], [2, 3], [3, 2]]);
+      else if (variant === 1) {
+        d1 = d2 = -rng.int(2, 3);
+        diff = 6;
+      } else if (variant === 2) {
         const sg = rng.pick([1, -1]);
         const ab = rng.sample([1, 2, 3], 2);
         d1 = sg * ab[0];
         d2 = sg * ab[1];
       } else {
         const sg = rng.pick([1, -1]);
-        d1 = sg * rng.int(1, 3);
-        d2 = -sg * rng.int(1, 3);
+        const ab = rng.sample([1, 2, 3], 2);
+        d1 = sg * ab[0];
+        d2 = -sg * ab[1];
       }
       const n3 = variant === 0 ? rng.pick([5, 6, 7]) : rng.pick([4, 5, 6, 7]);
       const ns = rng.sample([4, 5, 6, 7].filter((n) => n !== n3), 2).concat([n3]);
@@ -140,7 +145,15 @@
       ];
       if (k2 >= 2) posCands.push({ p: pAns - sg2, why: `it has moved only ${ticks(k2 - 1)} to the ${dir2}; ${k2} rolls carry it ${ticks(k2)}` });
       posCands.push({ p: pc[1] - d2, why: `it has moved to the ${sg2 > 0 ? 'left' : 'right'}; the polygon rolls to the ${dir2}` });
-      const order = rng.shuffle(posCands);
+      const dir1 = d1 > 0 ? 'right' : 'left';
+      const rep = { p: pc[1] + d1, why: `it has moved ${ticks(Math.abs(d1))} to the ${dir1}, as in the first step; the second step is ${edges(k2)} to the ${dir2}` };
+      if (d1 !== d2) posCands.push(rep);
+      // prefer wrong positions inside the visible range of the row (keeps the polygons large)
+      const inR = (c) => c.p >= Math.min(...pc) && c.p <= Math.max(...pc);
+      let order = rng.shuffle(posCands);
+      if (rng.chance(0.7)) order = order.filter(inR).concat(order.filter((c) => !inR(c)));
+      const seenP = new Set([pAns]);
+      order = order.filter((c) => !seenP.has(c.p) && seenP.add(c.p));
 
       // sizes and offsets per row
       const fitRow = (n, ps) => {
@@ -153,37 +166,68 @@
         const xb = 93 - hi * s;
         return { s: Math.round(s * 10) / 10, x0: Math.round((xa + rng.next() * Math.max(0, xb - xa - 0.2)) * 10) / 10 };
       };
-      const rowFit = [];
+      // marks (dot corner, thick edge) of the first panel of each row
+      const mk = ns.map((n) => {
+        for (let t = 0; t < 30; t++) {
+          const ds = rng.int(0, n - 1);
+          const ts = rng.int(0, n - 1);
+          if (ds !== ts && ds !== md(ts + 1, n) && (n % 2 === 0 || md(2 * ts - 2 * ds + 1, n) !== 0)) return { ds, ts };
+        }
+        return null;
+      });
+      RM.need(mk.every((m) => m));
+      const rowOf = (r, f) => {
+        const s0 = { n: ns[r], s: f.s, x0: f.x0, p: 0, ds: mk[r].ds, ts: mk[r].ts };
+        return [s0, roll(s0, d1), roll(roll(s0, d1), d2)];
+      };
+      const S = [];
       for (let r = 0; r < 2; r++) {
-        rowFit.push(fitRow(ns[r], pc));
-        RM.need(rowFit[r]);
+        const f = fitRow(ns[r], pc);
+        RM.need(f);
+        S.push(rowOf(r, f));
       }
+      /* no layout shortcut may point at the wrong position: tick counts from either end of the ground and the
+       * polygon's left / right / centre x must not follow a simple pattern that predicts the wrong option */
+      const FEAT = [
+        [(sp) => sp.p - Math.ceil((5 - sp.x0) / sp.s), 0],
+        [(sp) => Math.floor((95 - sp.x0) / sp.s) - sp.p - 1, 0],
+        [(sp) => sp.x0 + (sp.p + GEO[sp.n].lo) * sp.s, 1],
+        [(sp) => sp.x0 + (sp.p + GEO[sp.n].hi) * sp.s, 1],
+        [(sp) => sp.x0 + (sp.p + 0.5) * sp.s, 1],
+      ];
+      const pxPreds = (g) => {
+        const out = [];
+        const near = (a, b) => Math.abs(a - b) <= 2.5;
+        if (near(g[0][2], g[1][2])) out.push((g[0][2] + g[1][2]) / 2);
+        if ([0, 1].every((r) => near(g[r][2] - g[r][1], g[r][1] - g[r][0]))) out.push(2 * g[2][1] - g[2][0]);
+        if (near(g[0][2] - g[0][1], g[1][2] - g[1][1])) out.push(g[2][1] + (g[0][2] - g[0][1] + g[1][2] - g[1][1]) / 2);
+        if (near(g[0][2] - g[0][0], g[1][2] - g[1][0])) out.push(g[2][0] + (g[0][2] - g[0][0] + g[1][2] - g[1][0]) / 2);
+        [0, 1].forEach((c) => {
+          if ([0, 1].every((r) => near(g[r][2], g[r][c]))) out.push(g[2][c]);
+          if (near(g[2][c], g[0][c]) && near(g[0][2], g[1][2])) out.push(g[0][2]);
+        });
+        return out;
+      };
+      const posOk = (rows, wp) => {
+        const Wsp = Object.assign({}, rows[2][2], { p: wp });
+        return FEAT.every(([f, px]) => {
+          const g = RM.grid3((r, c) => f(rows[r][c]));
+          const w = f(Wsp);
+          if (px) return pxPreds(g).every((v) => Math.abs(v - w) > 2.5);
+          return RM.preds.numeric(g).every((pr) => pr[1] !== w);
+        });
+      };
       let wrong = null;
       for (const c of order) {
         const f = fitRow(n3, pc.concat([c.p]));
-        if (f) {
-          wrong = c;
-          rowFit.push(f);
-          break;
-        }
+        if (!f) continue;
+        const r3 = rowOf(2, f);
+        if (!posOk(S.concat([r3]), c.p)) continue;
+        wrong = c;
+        S.push(r3);
+        break;
       }
       RM.need(wrong);
-
-      // marks and states
-      const S = [];
-      for (let r = 0; r < 3; r++) {
-        const n = ns[r];
-        let ds, ts;
-        for (let t = 0; t < 30; t++) {
-          ds = rng.int(0, n - 1);
-          ts = rng.int(0, n - 1);
-          if (ds !== ts && ds !== md(ts + 1, n) && (n % 2 === 0 || md(2 * ts - 2 * ds + 1, n) !== 0)) break;
-          ds = -1;
-        }
-        RM.need(ds >= 0);
-        const s0 = { n, s: rowFit[r].s, x0: rowFit[r].x0, p: 0, ds, ts };
-        S.push([s0, roll(s0, d1), roll(roll(s0, d1), d2)]);
-      }
       const A = S[2][2];
       const C2 = S[2][1];
 
@@ -222,6 +266,7 @@
       if (k2 >= 2) rigid.push(Object.assign(rotM(d2 - sg2), { why: `the dot and the thick edge have travelled only ${k2 - 1} corner${k2 - 1 > 1 ? 's' : ''} round instead of ${k2}` }));
       rigid.push(Object.assign(rotM(d2 + sg2), { why: `the dot and the thick edge have travelled ${k2 + 1} corners round — one roll too many` }));
       rigid.push(Object.assign(rotM(-d2), { why: `the marks have turned ${sg2 > 0 ? 'anticlockwise' : 'clockwise'}; a polygon rolling to the ${dir2} turns ${cw2}` }));
+      if (d1 !== d2) rigid.push(Object.assign(rotM(d1), { why: `the dot and the thick edge have turned as in the first step (${Math.abs(d1)} corner${Math.abs(d1) > 1 ? 's' : ''} ${d1 > 0 ? 'clockwise' : 'anticlockwise'}) instead of ${k2} ${cw2}` }));
       rigid.push(Object.assign(rotM(0), { why: 'the dot and the thick edge are exactly where they were in the 2nd panel: the polygon would have slid without turning' }));
       const loose = [
         at(1 - A.ds, -A.ts, 'the marks are a mirror image of the right ones (left and right swapped)'),
@@ -248,9 +293,10 @@
       [null, wrong].forEach((pos) =>
         marks.forEach((m) => {
           const spec = Object.assign({}, A, { p: pos ? pos.p : A.p, ds: m.ds, ts: m.ts });
-          const flaws = [];
+          let flaws = [];
           if (pos) flaws.push(pos.why);
           if (m.why) flaws.push(m.why);
+          if (pos && pos.p === pc[1] && m.ds === C2.ds && m.ts === C2.ts) flaws = ['this is just a copy of the 2nd panel: the polygon has neither moved nor turned'];
           options.push({ spec, flaws });
         })
       );
@@ -273,7 +319,7 @@
         },
         {
           k: 'Row 3',
-          t: `In the 2nd panel the ${POLY[n]} has the dot on its ${vName(n, C2.ds)} and its ${eName(n, C2.ts)} is thick. It now rolls ${edges(k2)} to the ${dir2}: it moves <b>${ticks(k2)} to the ${dir2}</b> and turns ${cw2} by ${k2} × ${angTxt(n, 1)} = ${angTxt(n, k2)}. The dot ends on the <b>${vName(n, A.ds)}</b> and the thick edge becomes the <b>${eName(n, A.ts)}</b>.`,
+          t: `In the 2nd panel the ${POLY[n]} has the dot on its ${vName(n, C2.ds)} and its ${eName(n, C2.ts)} is thick. It now rolls ${edges(k2)} to the ${dir2}: it moves <b>${ticks(k2)} to the ${dir2}</b> and turns ${cw2} by ${angTxt(n, k2)}. The dot ends on the <b>${vName(n, A.ds)}</b> and the thick edge becomes the <b>${eName(n, A.ts)}</b>.`,
         },
       ];
 
@@ -285,6 +331,7 @@
         key: (sp) => [sp.n, sp.s, sp.x0, sp.p, sp.ds, sp.ts].join('|'),
         rules,
         hint: 'It does not slide — it tips over its corners.',
+        difficulty: diff,
       };
     },
   });
