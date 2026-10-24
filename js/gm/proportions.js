@@ -14,14 +14,16 @@
   const Y = [25, 50, 75];
   const gcd = (a, b) => (b ? gcd(b, a % b) : a);
   const red = (b, n) => {
+    if (b === 0) return ' (none black)';
+    if (b === n) return ' (all black)';
     const g = gcd(b, n) || 1;
     return g === 1 ? '' : ' (= ' + b / g + '/' + n / g + ')';
   };
   const fs = (f) => f[0] + '/' + f[1];
   const RULES = {
-    colsum: { f: (a, b) => a + b, name: 'sum', txt: 'the number of shapes in the 3rd row is the <b>sum</b> of the numbers in the two rows above it', calc: (a, b, t) => `${a} + ${b} = ${t}` },
-    coldiff: { f: (a, b) => a - b, name: 'difference', txt: 'the number of shapes in the 3rd row is the <b>difference</b> of the two rows above it (1st row minus 2nd row)', calc: (a, b, t) => `${a} − ${b} = ${t}` },
-    colprog: { f: (a, b) => 2 * b - a, name: 'progression', txt: 'going down a column, the number of shapes changes by a <b>constant step</b> (the same step between row 1 → row 2 and row 2 → row 3)', calc: (a, b, t) => `${a}, ${b}, ${t} (step ${b - a > 0 ? '+' : '−'}${Math.abs(b - a)})` },
+    colsum: { f: (a, b) => a + b, name: 'sum', txt: 'in each column the number of shapes in the 3rd row is the <b>sum</b> of the numbers in the two rows above it', calc: (a, b, t) => `${a} + ${b} = ${t}` },
+    coldiff: { f: (a, b) => a - b, name: 'difference', txt: 'in each column the number of shapes in the 3rd row is the <b>difference</b> of the two rows above it (1st row minus 2nd row)', calc: (a, b, t) => `${a} − ${b} = ${t}` },
+    colprog: { f: (a, b) => 2 * b - a, name: 'progression', txt: 'in each column the number of shapes changes by a <b>constant step</b> (the same step between row 1 → row 2 and row 2 → row 3)', calc: (a, b, t) => `${a}, ${b}, ${t} (step ${b - a > 0 ? '+' : '−'}${Math.abs(b - a)})` },
   };
 
   RM.register({
@@ -35,20 +37,18 @@
       let fr = null;
       for (let tries = 0; tries < 80 && !T; tries++) {
         fr = rng.sample(FR, 3);
-        const cols = [];
-        for (let c = 0; c < 3; c++) {
-          const opts = [];
-          for (let a = 3; a <= 12; a++)
-            if (a % fr[0][1] === 0)
-              for (let b = 3; b <= 12; b++)
-                if (b % fr[1][1] === 0 && b !== a) {
-                  const t = R.f(a, b);
-                  if (t >= 3 && t <= 12 && t % fr[2][1] === 0 && t !== b) opts.push([a, b, t]);
-                }
-          if (!opts.length) break;
-          cols.push(rng.pick(opts));
+        const opts = [];
+        for (let a = 2; a <= 12; a++)
+          if (a % fr[0][1] === 0)
+            for (let b = 2; b <= 12; b++)
+              if (b % fr[1][1] === 0 && b !== a) {
+                const t = R.f(a, b);
+                if (t >= 2 && t <= 12 && t % fr[2][1] === 0 && t !== b) opts.push([a, b, t]);
+              }
+        if (opts.length >= 3) {
+          const cols = rng.sample(opts, 3);
+          T = [0, 1, 2].map((r) => cols.map((cl) => cl[r]));
         }
-        if (cols.length === 3) T = [0, 1, 2].map((r) => cols.map((cl) => cl[r]));
       }
       RM.need(T);
       const B = T.map((row, r) => row.map((t) => (t * fr[r][0]) / fr[r][1]));
@@ -123,11 +123,11 @@
       const evid = (r) => T[r].map((t, c) => `${B[r][c]} of ${t}`).join(', ');
       const rules = [
         { k: 'Black share', t: `in every row all three panels have the <b>same fraction</b> of black shapes, and every row has its own fraction. Row 1: ${evid(0)} → <b>${fs(fr[0])}</b>. Row 2: ${evid(1)} → <b>${fs(fr[1])}</b>. Row 3 (so far): ${T[2].slice(0, 2).map((t, c) => `${B[2][c]} of ${t}`).join(', ')} → <b>${fs(fr[2])}</b>.` },
-        { k: 'Total', t: `the <b>total</b> number of shapes has its own rule: in each column ${R.txt}. Totals, column by column: ${[0, 1, 2].map((c) => `${T[0][c]}, ${T[1][c]}${c < 2 ? ', ' + T[2][c] : ', ?'}`).join(' | ')}. Neither the black nor the white counts follow a simple rule on their own.` },
+        { k: 'Total', t: `the <b>total</b> number of shapes has its own rule: ${R.txt}. Totals, column by column: ${[0, 1, 2].map((c) => `${T[0][c]}, ${T[1][c]}${c < 2 ? ', ' + T[2][c] : ', ?'}`).join(' | ')}. Neither the black nor the white counts follow a simple rule on their own.` },
         { k: 'Answer', t: `column 3: ${calc}, so the last panel has <b>${Tn}</b> shapes. Row 3 has the fraction ${fs(fr[2])}: ${fs(fr[2])} of ${Tn} = ${Bn} black, and ${Tn - Bn} white. Answer: <b>${Tn} shapes, ${Bn} black and ${Tn - Bn} white</b>.` },
       ];
       return {
-        difficulty: variant === 0 ? 7 : 7,
+        difficulty: 7,
         hint: 'Each row keeps its own black share; the total number of shapes is governed by something else.',
         panels,
         answer,

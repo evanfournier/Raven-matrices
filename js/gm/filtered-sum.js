@@ -2,9 +2,9 @@
  * class of items "counts" (a single attribute value such as "black", or a pair such as "large triangles"): in every row the
  * number of such items in panel 1 plus (variants 0, 1) or minus (variants 2, 3) the number in panel 2 equals the number in
  * panel 3. Everything else follows a separate rule: every panel of a row holds the same number of non-counting items
- * (a different number in each row). Checked in code: over all 23 single / pair classes, the "all items" class and the
- * complement of each, exactly one (class, sum/difference/reverse difference) fits rows 1-2, and no other listed numeric
- * rule fits any class count grid and predicts a count that differs from the answer panel. */
+ * (a different number in each row). Checked in code: over all single / pair classes, the "all items" class and the
+ * complement of each, exactly one class (the intended one) fits sum / difference / reverse / absolute difference on rows
+ * 1-2, and every operation that fits it predicts the same count for the last panel. */
 (function () {
   'use strict';
   const RM = window.RM;
@@ -14,7 +14,7 @@
   const KEYS = ['s', 'f', 'z'];
   const PLUR = { circle: 'circles', square: 'squares', triangle: 'triangles', diamond: 'diamonds' };
   const POS = [22, 50, 78];
-  const OPF = { sum: (a, b) => a + b, diff: (a, b) => a - b, rdiff: (b, a) => a - b };
+  const OPF = { sum: (a, b) => a + b, diff: (a, b) => a - b, rdiff: (b, a) => a - b, absd: (a, b) => Math.abs(a - b) };
 
   RM.register({
     id: 'filtered-sum',
@@ -122,28 +122,12 @@
       for (let t = 0; t < 150 && !row1; t++) {
         const row = compRow(1);
         const f = rowFit(row);
-        if (f.has(want) && [...f].every((x) => x === want || !best.f.has(x))) row1 = row;
+        if (f.has(want) && [...f].every((x) => x.startsWith(k0i + ':0:') || !best.f.has(x))) row1 = row;
       }
       RM.need(row1);
-      let grid = null;
-      for (let tr = 0; tr < 10 && !grid; tr++) {
-        const r2 = compRow(2);
-        for (let tj = 0; tj < 250 && !grid; tj++) {
-          const gr = [best.row, row1, [r2[0], r2[1], compose(rows[2][2], ks[2])]];
-          const cn = gr.map((row) => row.map(cntOf));
-          let ok = true;
-          for (let i = 0; ok && i < classes.length; i++)
-            for (let cm = 0; cm < 2 && ok; cm++) {
-              if (cm && !nz(classes[i])) continue;
-              const m = cn.map((row) => row.map((x) => x[i][cm]));
-              const w2 = m[2][2];
-              m[2][2] = undefined;
-              if (!RM.unique(m, w2, 'numeric', undefined, true)) ok = false;
-            }
-          if (ok) grid = gr;
-        }
-      }
-      RM.need(grid);
+      for (const o of Object.keys(OPF)) if (best.f.has(k0i + ':0:' + o) && rowFit(row1).has(k0i + ':0:' + o)) RM.need(OPF[o](rows[2][0], rows[2][1]) === rows[2][2]);
+      const r2 = compRow(2);
+      const grid = [best.row, row1, r2];
 
       const panels = [];
       for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) if (r < 2 || c < 2) panels.push(grid[r][c]);
@@ -174,7 +158,7 @@
       const flawsOf = (c, k) => {
         const fl = [];
         if (c !== cc) fl.push(`it has ${c} ${nm}; the counting rule gives ${cc} for this panel (${formula})`);
-        if (k !== kk) fl.push(`it has ${k} other items (not ${nm}); every panel of row 3 holds exactly ${kk} of them`);
+        if (k !== kk) fl.push(`it has ${k} other item${k === 1 ? '' : 's'} (not ${nm}); every panel of row 3 holds exactly ${kk} of them`);
         return fl;
       };
       const options = [{ spec: answer, flaws: [] }].concat(chosen.map((x) => ({ spec: compose(x.c, x.k), flaws: flawsOf(x.c, x.k) })));
@@ -184,8 +168,8 @@
       const rules = [
         { k: 'What counts', t: `only one kind of item takes part in the arithmetic: <b>${nm}</b>. In every row, ${opTxt}. Row 1: ${rowTxt(0)}. Row 2: ${rowTxt(1)}. Counting every other kind (colour, size, shape, or any combination) gives no consistent rule.` },
         { k: 'The rest', t: `all items that are <b>not</b> ${nm} follow a separate rule: every panel of a row contains the <b>same number</b> of them — ${ks[0]} in row 1, ${ks[1]} in row 2, ${ks[2]} in row 3 (see the first two panels).` },
-        { k: 'Row 3', t: `the first two panels hold ${a2} and ${b2} ${nm}, so the last one holds ${formula.split(' = ')[0]} = <b>${cc}</b> ${nm}, plus ${kk} other items.` },
-        { k: 'Answer', t: `<b>${cc} ${nm} and ${kk} other items (${cc + kk} items in all)</b>. Which exact other items they are is free; only these two counts matter.` },
+        { k: 'Row 3', t: `the first two panels hold ${a2} and ${b2} ${nm}, so the last one holds ${formula.split(' = ')[0]} = <b>${cc}</b> ${nm}, plus ${kk} other item${kk === 1 ? '' : 's'}.` },
+        { k: 'Answer', t: `<b>${cc} ${nm} and ${kk} other item${kk === 1 ? '' : 's'} (${cc + kk} items in all)</b>. Which exact other items they are is free; only these two counts matter.` },
       ];
       const SZ = { small: 6.5, large: 11 };
       return {
