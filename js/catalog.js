@@ -101,6 +101,46 @@
       blurb: 'Grandmaster. Row and column counts, composed functions, XOR tables, magic dominoes, reading orders, Carroll diagrams, ladders, code breaking, fractals and melodies.',
       fams: ['projections', 'plot-compose', 'xor-table', 'domino-magic', 'zigzag', 'carroll', 'ghost-leg', 'mastermind', 'fractal-sub', 'melody'],
     },
+    {
+      id: 'N',
+      name: 'Games & boards',
+      elite: true,
+      single: true,
+      blurb: 'Grandmaster II. Classic games with hidden rules: dominance cycles, jumps, captures, mine counts, tournaments, Latin grids, edge matching, chases, sowing and flipping.',
+      fams: ['rock-paper-scissors', 'peg-jump', 'capture', 'minesweeper', 'round-robin', 'sudoku', 'wang-tiles', 'pursuit', 'mancala', 'reversi'],
+    },
+    {
+      id: 'O',
+      name: 'Counting & sequences',
+      elite: true,
+      single: true,
+      blurb: 'Grandmaster II. Quantities that hide: second differences, alternating operations, coupled counts, interleaved series, hidden cycles, proportions, filtered sums, self-reference, variety, odd ones out.',
+      fams: ['slowdown', 'alternating-ops', 'coupled-counts', 'interleave', 'cycle-steps', 'proportions', 'filtered-sum', 'similarity-count', 'diversity', 'odd-one'],
+    },
+    {
+      id: 'P',
+      name: 'Rules & relations',
+      elite: true,
+      single: true,
+      blurb: 'Grandmaster II. Pointers, hidden invariants, five simultaneous rules, sort keys, migrating values, exchanges, stamps, intersections, pivot turns and turning paths.',
+      fams: ['pointers', 'invariant', 'five-rules', 'sort-keys', 'role-shift', 'exchange', 'stamp', 'intersection', 'pivot-turn', 'turn-count'],
+    },
+    {
+      id: 'Q',
+      name: 'Geometry & processes',
+      elite: true,
+      single: true,
+      blurb: 'Grandmaster II. Perimeters, angles, hourglasses, elevators, chain blasts, rainwater, Euclid squares, sieves, enlargements and centres of mass.',
+      fams: ['perimeter', 'angle-types', 'hourglass', 'elevator', 'bomberman', 'rain-trap', 'euclid', 'sieve', 'enlargement', 'centroid'],
+    },
+    {
+      id: 'R',
+      name: 'Graphs & structures',
+      elite: true,
+      single: true,
+      blurb: 'Grandmaster II. Greedy colourings, isomorphic networks, spanning trees, shortest routes, weak points, closures, dependency orders, heaps, bin packing and skyscrapers.',
+      fams: ['greedy-colouring', 'isomorphic', 'spanning-tree', 'shortest-route', 'cut-points', 'closure', 'topo-order', 'heap', 'bin-packing', 'skyscrapers'],
+    },
   ];
   const OLD_LETTER = ['A', 'B', 'C', 'D'];
 

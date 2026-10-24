@@ -3,7 +3,7 @@
 A training site for hard Raven-style progressive matrices, built to prepare for psychometric
 reasoning tests such as the Air France cadet programme's PSY1 assessments.
 
-- **266 catalogue puzzles in 13 themed sets.** Every set has its own rule families and its own
+- **316 catalogue puzzles in 18 themed sets.** Every set has its own rule families and its own
   visual language; no family appears in two sets.
   - Sets **A–D** (120 puzzles, ★★★ hard → ★★★★★ extreme).
   - Sets **E–H** (96 puzzles, **elite**: ★★★★★★ and ★★★★★★★ "nightmare"), built on logic that
@@ -11,6 +11,8 @@ reasoning tests such as the Air France cadet programme's PSY1 assessments.
   - Sets **I–M** (50 puzzles, **grandmaster**: ★★★★★★ to ★★★★★★★★): fifty one-of-a-kind
     puzzles — one per family, each with its own logic and its own design (algorithms, 3-D
     reasoning, physics, topology, logic). A few are 2 × 2 analogies.
+  - Sets **N–R** (50 puzzles, **grandmaster II**): fifty more one-of-a-kind families — games,
+    counting, relations, processes and graphs — with simple drawings and very hard logic.
 - **8 options per puzzle, exactly one correct**, with a full explanation of every rule and the
   reason each wrong option fails.
 - **Timed test mode**: 10–40 questions, 45 s – 3 min each, from the whole catalogue, sets A–D, the
@@ -42,6 +44,11 @@ Keyboard: `1`–`8` select · `Enter` check / next · `h` hint · `←` `→` pr
 | K (grandmaster) | Physics & mechanics | Jugs, Belts & gears, Colliding beads, Gridlock, Circuits, Superposition, Moon phases, Semaphores, Sandpile, Camera obscura |
 | L (grandmaster) | Geometry & topology | Rubber band, Inside or outside, Territories, Gallery guards, Holes, Lattice areas, Star polygons, Rosettes, Leaper distance, Hole and piece |
 | M (grandmaster) | Logic & structure | Row & column counts, Composed functions, Star map, Magic dominoes, Reading order, Carroll diagram, Ladder lottery, Code breaker, Fractal substitution, Melodies |
+| N (grandmaster II) | Games & boards | Rock, paper, scissors, Peg solitaire, Surrounded, Minesweeper, Round robin, Big Latin square, Edge matching, Pursuit, Mancala, Reversi |
+| O (grandmaster II) | Counting & sequences | Slowing down, Alternating operations, Coupled counts, Interleaved sequences, Hidden cycle, Proportions, What counts, Self-reference, Variety, Odd one out |
+| P (grandmaster II) | Rules & relations | Pointers, Hidden invariant, Five rules, Sort keys, Role shift, Exchanges, Stamp, Intersection, Pivot turn, Turns |
+| Q (grandmaster II) | Geometry & processes | Perimeter, Angles, Hourglasses, Elevator, Chain blast, Rainwater, Squaring off, Sieve, Enlargement, Centre of mass |
+| R (grandmaster II) | Graphs & structures | Greedy colouring, Same network, Spanning tree, Shortest route, Weak points, Closure, Dependency order, Heap, Bin packing, Skyscrapers |
 
 In sets A–H each family contributes 4 puzzles (4 different variants) to its set; in the
 grandmaster sets I–M each family contributes exactly one puzzle. The "How to solve" page of the

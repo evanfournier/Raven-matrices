@@ -433,7 +433,7 @@
       <div class="card">
         <div class="form-row"><span>Questions</span>${sel('n', [[10, '10'], [20, '20'], [30, '30'], [40, '40']])}</div>
         <div class="form-row"><span>Time per question</span>${sel('per', [[45, '45 s'], [60, '60 s'], [90, '90 s'], [120, '2 min'], [180, '3 min']])}</div>
-        <div class="form-row"><span>Puzzles</span>${sel('src', [['catalogue', 'Whole catalogue'], ['classic', 'Sets A–D'], ['hard', '★★★★★ only'], ['elite', 'Elite sets E–H'], ['grand', 'Grandmaster sets I–M'], ['fresh', 'Freshly generated']])}</div>
+        <div class="form-row"><span>Puzzles</span>${sel('src', [['catalogue', 'Whole catalogue'], ['classic', 'Sets A–D'], ['hard', '★★★★★ only'], ['elite', 'Elite sets E–H'], ['grand', 'Grandmaster sets I–R'], ['fresh', 'Freshly generated']])}</div>
         <div class="form-row"><span>Total time</span><b>${mmss(testCfg.n * testCfg.per)}</b></div>
         <div class="actions"><button class="primary" id="start">Start test</button></div>
       </div>`;
