@@ -82,6 +82,13 @@
   const sum = (m) => m.reduce((a, b) => a + b, 0);
 
   function genPoly(rng, kind, nlo, nhi) {
+    for (let t = 0; t < 40; t++) {
+      const P = genPoly1(rng, kind, nlo, nhi);
+      if (P) return P;
+    }
+    throw RM.RETRY;
+  }
+  function genPoly1(rng, kind, nlo, nhi) {
     const cx = rng.int(32, 68);
     const cy = rng.int(32, 68);
     let P;
@@ -113,8 +120,7 @@
       });
     }
     P = P.map((p) => [R1(p[0]), R1(p[1])]);
-    RM.need(convex(P) && edgesOk(P, 9) && inside(P));
-    return P;
+    return convex(P) && edgesOk(P, 9) && inside(P) ? P : null;
   }
 
   const CFG = [
@@ -145,26 +151,34 @@
     generate(rng, variant) {
       const cfg = CFG[variant % 4];
       const op = cfg.op;
+      const full = Object.keys(OPS);
       const A = [];
       const B = [];
+      const mA = [];
+      const mB = [];
+      const M = [];
       for (let r = 0; r < 3; r++) {
-        A.push(genPoly(rng, rng.pick(cfg.kinds), cfg.n[0], cfg.n[1]));
-        B.push(genPoly(rng, rng.pick(cfg.kinds), cfg.n[0], cfg.n[1]));
-      }
-      const mA = A.map(maskOf);
-      const mB = B.map(maskOf);
-      const full = Object.keys(OPS);
-      const M = [0, 1, 2].map((r) => {
-        const o = {};
-        full.forEach((k) => (o[k] = opMask(k, mA[r], mB[r])));
-        return o;
-      });
-      /* all operations pairwise distinct in every row, and the shapes properly overlap */
-      for (let r = 0; r < 3; r++) {
-        for (let i = 0; i < full.length; i++) for (let j = i + 1; j < full.length; j++) RM.need(dist(M[r][full[i]], M[r][full[j]]) >= 150);
-        const ar = sum(M[r].and);
-        RM.need(ar >= 110 && ar <= 0.7 * Math.min(sum(mA[r]), sum(mB[r])));
-        if (op === 'and') RM.need(clip(B[r], A[r]).length >= 3);
+        let done = false;
+        for (let t = 0; t < 80 && !done; t++) {
+          const a = genPoly(rng, rng.pick(cfg.kinds), cfg.n[0], cfg.n[1]);
+          const b = genPoly(rng, rng.pick(cfg.kinds), cfg.n[0], cfg.n[1]);
+          const ma = maskOf(a);
+          const mb = maskOf(b);
+          const o = {};
+          full.forEach((k) => (o[k] = opMask(k, ma, mb)));
+          let good = true;
+          for (let i = 0; i < full.length && good; i++) for (let j = i + 1; j < full.length && good; j++) good = dist(o[full[i]], o[full[j]]) >= 110;
+          const ar = sum(o.and);
+          good = good && ar >= 110 && ar <= 0.7 * Math.min(sum(ma), sum(mb)) && (op !== 'and' || clip(b, a).length >= 3);
+          if (!good) continue;
+          done = true;
+          A.push(a);
+          B.push(b);
+          mA.push(ma);
+          mB.push(mb);
+          M.push(o);
+        }
+        RM.need(done);
       }
       /* the result of each row, its spec */
       const resSpec = (r) => (op === 'and' ? { t: 'poly', P: clip(B[r], A[r]) } : { t: 'op', op, A: A[r], B: B[r] });
@@ -286,7 +300,7 @@
         t: `column 1 and column 2 show one shape each, placed in the <b>same frame</b> (the faint grid helps to compare positions). Column 3 shows, in black, ${OPTXT[op]} when the two shapes of the row are laid on top of each other.`,
       });
       const wrong = full.filter((k) => k !== op).map((k) => {
-        const r = [0, 1].find((q) => dist(M[q][k], M[q][op]) >= 150);
+        const r = [0, 1].find((q) => dist(M[q][k], M[q][op]) >= 110);
         return `${OPTXT[k].replace(/<\/?b>/g, '')} would look quite different in row ${r + 1}`;
       });
       rules.push({ k: 'Which operation', t: `rows 1–2 settle it: ${wrong.join('; ')}. Only the chosen operation fits both rows.` });
