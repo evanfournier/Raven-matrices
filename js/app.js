@@ -115,6 +115,56 @@
     mastermind: 'Eight scored guesses — the ninth panel is the secret code.',
     'fractal-sub': 'Every square grows into four, according to its colour — twice.',
     melody: 'Melodies played backwards, upside down or shifted.',
+    'rock-paper-scissors': 'Tokens that meet fight it out under a hidden cycle of who beats whom.',
+    'peg-jump': 'Peg solitaire: one jump per step by a fixed policy; the jumped peg disappears.',
+    'capture': 'Stones with no free neighbour and no friend beside them are captured.',
+    'minesweeper': 'Mines combine by a rule; every digit counts the mines around it.',
+    'round-robin': 'Tournament rounds: one player stays put while the others rotate.',
+    'sudoku': 'The nine panels together form one big Latin square.',
+    'wang-tiles': 'Neighbouring tiles match edge to edge, and the border follows its own rule.',
+    'pursuit': 'The mouse runs and bounces; the cat always steps toward it.',
+    'mancala': 'Seeds are picked up and sown one by one around the ring of pits.',
+    'reversi': 'Every line of opponent discs closed off by the new disc flips.',
+    'slowdown': 'The count changes by a little less each time — a constant second difference.',
+    'alternating-ops': 'Two operations take turns along the sequence.',
+    'coupled-counts': 'Black and white counts feed each other from one panel to the next.',
+    'interleave': 'Two sequences take turns: odd panels tell one story, even panels another.',
+    'cycle-steps': 'A hidden cycle of shapes, walked with a different step in each row.',
+    'proportions': 'The share of black stays the same along a row, whatever the total.',
+    'filtered-sum': 'Only one kind of shape takes part in the sum — find which.',
+    'similarity-count': 'The dots count how many features a figure shares with its neighbour.',
+    'diversity': 'What matters is how many different shapes and shades there are.',
+    'odd-one': 'One figure differs in one feature — where it sits and how it differs both follow rules.',
+    'pointers': 'A shape turns black when an odd number of arrows point at it.',
+    'invariant': 'Every panel obeys the same hidden relation between two counts.',
+    'five-rules': 'Five parts of one figure, five different rules at once.',
+    'sort-keys': 'The same figures sorted by a different key in each panel.',
+    'role-shift': 'Values migrate from one attribute to another along each row.',
+    'exchange': 'Two figures swap exactly one feature per step, in a fixed rotation.',
+    'stamp': 'A stamp is printed on every marked cell; overlaps cancel out.',
+    'intersection': 'Two shapes combine into the region they have in common.',
+    'pivot-turn': 'A figure turns a quarter turn about a pivot outside it.',
+    'turn-count': 'Count right turns minus left turns along each path.',
+    'perimeter': 'Perimeters add up — holes included, areas are a decoy.',
+    'angle-types': 'Right angles and inward corners each follow their own rule.',
+    'hourglass': 'Two hourglasses run and are turned over the moment they empty.',
+    'elevator': 'The car keeps its direction while there are calls ahead.',
+    'bomberman': 'A lit bomb blasts along rows and columns and sets off others.',
+    'rain-trap': 'Terrain combines; rainwater fills every pocket it can.',
+    'euclid': 'Squares are cut off the rectangle, step by step.',
+    'sieve': 'Each step circles the next prime and crosses out its multiples.',
+    'enlargement': 'A shape is enlarged about a fixed centre — the factor may be negative.',
+    'centroid': 'Three dots move; the ring always sits at their centre of mass.',
+    'greedy-colouring': 'Nodes take the first shade their coloured neighbours do not use.',
+    'isomorphic': 'The same network, drawn three different ways.',
+    'spanning-tree': 'Keep the shortest links that connect everything without a loop.',
+    'shortest-route': 'Road costs combine; the highlighted route is always the cheapest.',
+    'cut-points': 'Black nodes are the ones whose removal splits the network.',
+    'closure': 'If A leads to B and B leads to C, then A leads to C.',
+    'topo-order': 'Line the symbols up so that every arrow points to the right.',
+    'heap': 'A new disc is added to the tree and climbs while it beats its parent.',
+    'bin-packing': 'Items go into bins one by one, by a fixed packing policy.',
+    'skyscrapers': 'Towers change height; the dots count the towers visible from each side.',
   };
 
   /* ------------------------------------------------------------ progress storage */
@@ -339,7 +389,7 @@
     app.innerHTML = `
       <h1>Hard Raven matrices — ${all.length} puzzles</h1>
       <p class="muted">Each puzzle is a 3 × 3 matrix with the last panel missing and 8 options, exactly one of which is correct. Every puzzle comes with a full explanation and the reason each wrong option fails.
-      The ${RM.SETS.length} sets each have their own theme: ${nFam} rule families in total, and no family appears in two sets. Sets A–D range from hard (★★★) to extreme (★★★★★); sets E–H are <b>elite</b> (★★★★★★ and beyond); sets I–M are the <b>grandmaster collection</b>: 50 one-of-a-kind puzzles (★★★★★★ to ★★★★★★★★), each with its own logic and design, a few of them 2 × 2 analogies.</p>
+      The ${RM.SETS.length} sets each have their own theme: ${nFam} rule families in total, and no family appears in two sets. Sets A–D range from hard (★★★) to extreme (★★★★★); sets E–H are <b>elite</b> (★★★★★★ and beyond); sets I–R are the <b>grandmaster collection</b>: 100 one-of-a-kind puzzles (★★★★★★ to ★★★★★★★★), each with its own logic and design, a few of them 2 × 2 analogies.</p>
       <div class="progress"><span style="width:${(100 * solved) / all.length}%"></span></div>
       <div class="muted" style="font-size:13px">${solved} / ${all.length} solved</div>
       <div class="filters">
