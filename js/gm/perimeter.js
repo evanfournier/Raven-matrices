@@ -74,6 +74,7 @@
       const set = new Set();
       const keep = new Set();
       let n;
+      let ring = 0;
       if (hole) {
         const [w, h] = rng.pick([[3, 3], [3, 3], [3, 4], [4, 3]]);
         const ox = rng.int(0, N - w), oy = rng.int(0, N - h);
@@ -81,7 +82,8 @@
           if (x === 0 || y === 0 || x === w - 1 || y === h - 1) set.add(id(ox + x, oy + y));
           else keep.add(id(ox + x, oy + y));
         }
-        n = set.size + Math.max(0, (P - info(set).per) / 2) + rng.int(0, 1);
+        ring = set.size;
+        n = ring + Math.max(1, (P - info(set).per) / 2) + rng.int(0, 1);
       } else {
         set.add(id(rng.int(0, N - 1), rng.int(0, N - 1)));
         n = Math.ceil((P - 2) / 2) + rng.int(0, 4);
@@ -107,7 +109,7 @@
         set.add(pick);
       }
       const f = info(set);
-      if (f.per === P && (hole ? f.holes > 0 : f.holes === 0) && set.size === n && valid(set)) return set;
+      if (f.per === P && (hole ? f.holes > 0 && set.size > ring : f.holes === 0) && set.size === n && valid(set)) return set;
     }
     return null;
   }
@@ -128,6 +130,18 @@
         if (valid(S2)) res.push(S2);
       });
     });
+    S.forEach((c) => {
+      const S1 = new Set(S);
+      S1.delete(c);
+      if (valid(S1)) res.push(S1);
+      const x = c % N, y = (c / N) | 0;
+      NB.forEach(([dx, dy]) => {
+        if (!inside(x + dx, y + dy) || S.has(id(x + dx, y + dy))) return;
+        const S2 = new Set(S);
+        S2.add(id(x + dx, y + dy));
+        if (valid(S2)) res.push(S2);
+      });
+    });
     return res;
   }
 
@@ -141,7 +155,8 @@
       if (mode === 'sum') {
         const pairs = [];
         while (pairs.length < 3) {
-          const a = 2 * rng.int(3, 6), b = 2 * rng.int(3, 6);
+          const a = 2 * rng.int(3, 8), b = 2 * rng.int(3, 6);
+          if (a + b > 22 || (variant === 0 && a + b < 18)) continue;
           if (!pairs.some((p) => p[0] === a && p[1] === b)) pairs.push([a, b]);
         }
         PG = RM.grid3((r, c) => (c < 2 ? pairs[r][c] : pairs[r][0] + pairs[r][1]));
@@ -163,16 +178,18 @@
       let nh = 0;
       for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
         const P = PG[r][c];
-        const hole = P >= 16 && rng.chance(variant === 0 ? 0.7 : 0.4);
-        const s = gen(rng, P, hole);
+        const hole = P >= 18 && rng.chance(variant === 0 ? (c === 2 ? 1 : 0.7) : 0.4);
+        let s = null;
+        for (let t = 0; t < 6 && !s; t++) {
+          s = gen(rng, P, hole);
+          if (s && (SETS[r].some((o) => o && norm(o) === norm(s)) || (r === 2 && c === 2 && SETS.some((row) => row.some((o) => o && norm(o) === norm(s)))))) s = null;
+        }
         RM.need(s);
         SETS[r][c] = s;
         INF[r][c] = info(s);
         if (INF[r][c].holes) nh++;
       }
       if (variant === 0) RM.need(INF[2][2].holes > 0 && nh >= 3);
-      const norms = SETS.flat().map(norm);
-      RM.need(new Set(norms).size === 9);
       RM.needNoConflict(RM.grid3((r, c) => INF[r][c].area), INF[2][2].area, 'numeric');
       RM.needNoConflict(RM.grid3((r, c) => INF[r][c].outer), INF[2][2].outer, 'numeric');
       RM.needNoConflict(RM.grid3((r, c) => INF[r][c].bb), INF[2][2].bb, 'numeric');
@@ -183,31 +200,39 @@
       /* ---- options: one-square moves of a hidden base shape B (the answer is one of them) */
       const baseOpts = moves(ansSet);
       RM.need(baseOpts.length);
-      const B = rng.pick(baseOpts);
-      const seen = new Set([ansNorm, norm(B)]);
-      const cands = [];
-      rng.shuffle(moves(B)).forEach((S) => {
-        const f = info(S);
-        const nk = norm(S);
-        if (f.per === T || seen.has(nk)) return;
-        seen.add(nk);
-        cands.push({ S, f, trap: f.holes > 0 && f.outer === T });
-      });
+      let cands = [];
+      for (let bt = 0; bt < 12 && cands.length < 7; bt++) {
+        const B = rng.pick(baseOpts);
+        const seen = new Set([ansNorm, norm(B)]);
+        cands = [];
+        const p1 = moves(B);
+        let pool = p1.slice();
+        rng.sample(p1, Math.min(8, p1.length)).forEach((S) => { pool = pool.concat(moves(S)); });
+        rng.shuffle(pool).forEach((S) => {
+          const f = info(S);
+          const nk = norm(S);
+          if (f.per === T || seen.has(nk)) return;
+          seen.add(nk);
+          cands.push({ S, f, trap: f.holes > 0 && f.outer === T });
+        });
+      }
       RM.need(cands.length >= 7);
       let chosen = null;
-      for (let tr = 0; tr < 40 && !chosen; tr++) {
+      for (let tr = 0; tr < 60 && !chosen; tr++) {
         const pool = rng.shuffle(cands).sort((a, b) => (b.trap ? 1 : 0) - (a.trap ? 1 : 0));
         const cnt = {};
         const pick = [];
         pool.forEach((c) => {
-          if (pick.length >= 7 || (cnt[c.f.per] || 0) >= 3) return;
+          if (pick.length >= 7 || (cnt[c.f.per] || 0) >= 4) return;
           cnt[c.f.per] = (cnt[c.f.per] || 0) + 1;
           pick.push(c);
         });
         if (pick.length < 7) continue;
         const ps = pick.map((c) => c.f.per).concat([T]).sort((a, b) => a - b);
-        if (T === ps[3] || T === ps[4] || T === ps[0] || T === ps[7]) continue;
-        if (new Set(ps).size < 4) continue;
+        if (ps[0] === T || ps[7] === T) continue;
+        if (new Set(ps).size < 3) continue;
+        if (pick.filter((c) => c.f.area === ai.area).length > 3) continue;
+        if (ai.holes ? pick.filter((c) => c.f.holes).length < 3 : pick.filter((c) => c.f.holes).length > 3) continue;
         chosen = pick;
       }
       RM.need(chosen);
