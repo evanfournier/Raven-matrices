@@ -71,7 +71,9 @@
         if (vis.every(([k, b]) => !!((m >> k) & 1) === b)) preds.add(CN[2][2].map((k) => ((m >> k) & 1 ? 1 : 0)).join(''));
       RM.need(preds.size === 1 && preds.has(ansB.map((x) => (x ? 1 : 0)).join('')));
       /* no simple rule on a single shape's colour or on the number of black shapes */
-      for (let k = 0; k < 4; k++) RM.needNoConflict(RM.grid3((r, c) => (B[r][c][k] ? 'b' : 'w')), ansB[k] ? 'b' : 'w', 'categorical');
+      for (let k = 0; k < 4; k++)
+        for (const f of [RM.BOOL.xor.f, RM.BOOL.or.f, RM.BOOL.and.f])
+          if ([0, 1].every((r) => f(B[r][0][k], B[r][1][k]) === B[r][2][k])) RM.need(f(B[2][0][k], B[2][1][k]) === ansB[k]);
       RM.needNoConflict(RM.grid3((r, c) => B[r][c].filter((x) => x).length), ansB.filter((x) => x).length, 'numeric');
 
       /* ---------------------------------------------------------- distractors */
