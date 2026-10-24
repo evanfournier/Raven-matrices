@@ -2,8 +2,8 @@
  * outer shape (circle / square / hexagon) = Latin square; inner arrow rotation = a fixed quarter-turn step per column;
  * dot count (1–6) = col 1 + col 2 = col 3 (variants: col 1 − col 2); position of a bar around the shape (8 places) =
  * moves clockwise by a fixed step per ROW (down each column); fill of the inner arrow = Latin square in the other
- * orientation. Each of the five attribute grids is checked with RM.needUnique, and every distractor breaks one or two
- * rules, each with a precise flaw. */
+ * orientation. Each of the five attribute grids is checked with RM.needUnique, and the 8 options are the perturb cube of 3
+ * independent mistakes (wrong dot count, wrong arrow rotation, wrong bar position), so no option is more "typical". */
 (function () {
   'use strict';
   const RM = window.RM;
@@ -93,29 +93,12 @@
         if (w === ans.bar || a.indexOf(w) !== i) return;
         alts.bar.push({ v: w, why: `the bar must move ${s * 45}° clockwise per row: ${DIRN[BR[1][2]]} (row 2) → ${DIRN[ans.bar]}; here it is at ${DIRN[w]}` });
       });
-      const attrs = ['sh', 'rot', 'dots', 'bar', 'fl'];
-      attrs.forEach((a) => RM.need(alts[a].length >= 1));
-      const chosen = [];
-      const seen = new Set([key(ans)]);
-      const push = (x, flaws) => {
-        const k = key(x);
-        if (seen.has(k)) return false;
-        seen.add(k);
-        chosen.push({ s: x, flaws });
-        return true;
-      };
-      attrs.forEach((a) => {
+      ['dots', 'rot', 'bar'].forEach((a) => RM.need(alts[a].length >= 1));
+      const mk = (a) => {
         const alt = rng.pick(alts[a]);
-        push(Object.assign({}, ans, { [a]: alt.v }), [alt.why]);
-      });
-      let guard = 0;
-      while (chosen.length < 7 && guard++ < 60) {
-        const [a, b] = rng.sample(attrs, 2);
-        const x = rng.pick(alts[a]);
-        const y = rng.pick(alts[b]);
-        push(Object.assign({}, ans, { [a]: x.v, [b]: y.v }), [x.why, y.why]);
-      }
-      RM.need(chosen.length === 7);
+        return { apply: (x) => ((x[a] = alt.v), x), why: alt.why };
+      };
+      const perturb = [mk('dots'), mk('rot'), mk('bar')];
 
       /* ---------------------------------------------------------- drawing */
       const render = (x) => {
@@ -171,7 +154,7 @@
         hint: 'five independent features, five different kinds of rule: some work along the rows, one works down the columns.',
         panels,
         answer: ans,
-        options: [{ spec: ans, flaws: [] }].concat(chosen.map((c) => ({ spec: c.s, flaws: c.flaws }))),
+        perturb,
         render,
         key,
         rules,

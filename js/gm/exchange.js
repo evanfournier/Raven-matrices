@@ -21,7 +21,7 @@
   ];
   const CFG = [
     { nA: 3, pat: 'perm3', diff: 7 },
-    { nA: 3, pat: 'aab', diff: 7 },
+    { nA: 4, pat: 'abac', diff: 8 },
     { nA: 4, pat: 'perm4', diff: 8 },
     { nA: 4, pat: 'perm3of4', diff: 8 },
   ];
@@ -39,9 +39,10 @@
       const nA = cfg.nA;
       let pat;
       if (cfg.pat === 'perm3') pat = rng.shuffle([0, 1, 2]);
-      else if (cfg.pat === 'aab') {
-        const [a, b] = rng.sample([0, 1, 2], 2);
-        pat = rng.shuffle([a, a, b]);
+      else if (cfg.pat === 'abac') {
+        const [a, b, c] = rng.sample([0, 1, 2, 3], 3);
+        const k = rng.int(0, 3);
+        pat = [a, b, a, c].map((_, i, arr) => arr[(i + k) % 4]);
       } else if (cfg.pat === 'perm4') pat = rng.shuffle([0, 1, 2, 3]);
       else pat = rng.sample([0, 1, 2, 3], 3);
       const p = pat.length;
